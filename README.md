@@ -1,6 +1,6 @@
 # NAPS 2 CRICRI EDITION
 ## NOTES (About this fork): 
-Here is the current release [(6.2.3 Un-official)](https://github.com/christianclavet/naps2-cricri-edition/releases/tag/v6.2.3_CriCri_Edition)
+Here is the current release 
 
 
 ## Darkmode activated
