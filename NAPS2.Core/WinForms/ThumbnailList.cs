@@ -9,6 +9,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Windows.Forms;
 using NAPS2.Lang.Resources;
 using NAPS2.Platform;
@@ -103,8 +104,9 @@ namespace NAPS2.WinForms
 
 
 
-        public void AddedImages(List<ScannedImage> allImages, Color color, bool recover = false)
+        public async void AddedImages(List<ScannedImage> allImages, Color color, bool recover = false)
         {
+            await System.Threading.Tasks.Task.Yield();
 
             lock (this)
             {
@@ -114,6 +116,7 @@ namespace NAPS2.WinForms
                     GroupRefresh(allImages);
                 }
 
+                
                 BeginUpdate();
                 for (int i = 0; i < ilThumbnailList.Images.Count; i++)
                 {

@@ -376,7 +376,7 @@ namespace NAPS2.WinForms
             InitializeComponent();
             PostInitializeComponent();
             
-            AddThumbnails();
+            Task.Run (() => AddThumbnails());
             notify.Rebuild();
             Focus();
             WindowState = FormWindowState.Normal;
@@ -800,7 +800,7 @@ namespace NAPS2.WinForms
                         }
 
                         imageList.Images.Add(scannedImage);
-                        AddThumbnails();
+                        Task.Run ( ()=> AddThumbnails());
 
                         scannedImage.ThumbnailChanged += ImageThumbnailChanged;
                         scannedImage.ThumbnailInvalidated += ImageThumbnailInvalidated;
@@ -874,7 +874,7 @@ namespace NAPS2.WinForms
                             }
 
                             
-                            AddThumbnails();
+                            Task.Run ( () => AddThumbnails());
                         }
                         scannedImage.ThumbnailChanged += ImageThumbnailChanged;
                         scannedImage.ThumbnailInvalidated += ImageThumbnailInvalidated;
@@ -892,10 +892,19 @@ namespace NAPS2.WinForms
             
         }
 
-        private void AddThumbnails()
+        private async Task AddThumbnails()
         {
             Color fore = Color.Black;
-            thumbnailList1.AddedImages(imageList.Images, fore, recover);
+
+            await Task.Run(() => 
+            {
+            if (!thumbnailList1.InvokeRequired)
+                return;
+
+            thumbnailList1.Invoke(() => {
+                    thumbnailList1.AddedImages(imageList.Images, fore, recover); 
+            }); 
+            
             //if (!recover)
             //    GetPreviewImage(imageList.Images[imageList.Images.Count-1], true);
 
@@ -903,6 +912,7 @@ namespace NAPS2.WinForms
             //Should not do it if a selection is active.
             if (thumbnailList1.Items.Count>5 && !SelectedIndices.Any() && !recover)
                     thumbnailList1.EnsureVisible(thumbnailList1.Items.Count-1);
+            });
         }
 
         private void DeleteThumbnails()
@@ -2296,7 +2306,7 @@ namespace NAPS2.WinForms
                 img1.ThumbnailInvalidated += ImageThumbnailInvalidated;
                 
                
-                AddThumbnails();
+                Task.Run ( () => AddThumbnails());
                 renderThumbnailsWaitHandle.Set();
                 return;
 
