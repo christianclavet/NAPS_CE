@@ -13,6 +13,7 @@ using ImageMagick;
 using System.Windows.Forms;
 using NTwain.Data;
 using static System.Net.Mime.MediaTypeNames;
+using ImageMagick.Factories;
 
 namespace NAPS2.ImportExport.Images
 {
@@ -82,7 +83,7 @@ namespace NAPS2.ImportExport.Images
                             var quality = imageSettingsContainer.ImageSettings.JpegQuality;
                             if (compression == TiffCompression.Jpeg && quality > 0)
                             {
-                                image.Quality = quality;
+                                image.Quality = (uint)quality;
                             }
 
                             //image.Density = new Density(300, 300);
@@ -128,7 +129,7 @@ namespace NAPS2.ImportExport.Images
                                     var quality = imageSettingsContainer.ImageSettings.JpegQuality;
                                     if (compression == TiffCompression.Jpeg && quality > 0)
                                     {
-                                        img.Quality = quality;
+                                        img.Quality = (uint)quality;
                                     }
 
                                     if (compression == TiffCompression.Jpeg)

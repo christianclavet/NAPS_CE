@@ -103,7 +103,7 @@
       <Version>1.9.71</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces">
-      <Version>9.0.4</Version>
+      <Version>9.0.9</Version>
     </PackageReference>
     <PackageReference Include="Ninject">
       <Version>3.3.6</Version>
