@@ -2623,7 +2623,7 @@ namespace NAPS2.WinForms
             }
         }
 
-        private void thumbnailList1_DragDrop(object sender, DragEventArgs e)
+        private async void thumbnailList1_DragDrop(object sender, DragEventArgs e)
         {
             // Receive drop data
             if (e.Data.GetDataPresent(typeof(DirectImageTransfer).FullName))
@@ -2635,7 +2635,7 @@ namespace NAPS2.WinForms
                 }
                 else
                 {
-                    ImportDirect(data, false);
+                   await Task.Run (() => ImportDirect(data, false));
                 }
             }
             else if (e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -2650,7 +2650,7 @@ namespace NAPS2.WinForms
 
                 }
                 var data = (string[])e.Data.GetData(DataFormats.FileDrop);
-                ImportFiles(data);
+                await Task.Run (() => ImportFiles(data));
             }
             thumbnailList1.InsertionMark.Index = -1;
         }
