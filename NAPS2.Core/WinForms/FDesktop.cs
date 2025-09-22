@@ -898,20 +898,25 @@ namespace NAPS2.WinForms
 
             await Task.Run(() => 
             {
-            if (!thumbnailList1.InvokeRequired)
+                if (!thumbnailList1.InvokeRequired)
                 return;
 
-            thumbnailList1.Invoke(() => {
-                    thumbnailList1.AddedImages(imageList.Images, fore, recover); 
-            }); 
+                thumbnailList1.Invoke(() => {
+                thumbnailList1.AddedImages(imageList.Images, fore, recover); 
+
+                if (thumbnailList1.Items.Count > 5 && !SelectedIndices.Any() && !recover)
+                    thumbnailList1.EnsureVisible(thumbnailList1.Items.Count - 1);
+           
             
             //if (!recover)
             //    GetPreviewImage(imageList.Images[imageList.Images.Count-1], true);
 
             //Scroll the list so that every new item that get added can be viewed. -CC
             //Should not do it if a selection is active.
-            if (thumbnailList1.Items.Count>5 && !SelectedIndices.Any() && !recover)
-                    thumbnailList1.EnsureVisible(thumbnailList1.Items.Count-1);
+                if (thumbnailList1.Items.Count > 5 && !SelectedIndices.Any() && !recover)
+                    thumbnailList1.EnsureVisible(thumbnailList1.Items.Count - 1);
+                });
+
             });
         }
 
@@ -2456,6 +2461,9 @@ namespace NAPS2.WinForms
                 if (darkMode)
                     color = Color.Black;
                 thumbnailList1.RegenerateThumbnailList(imageList.Images, color);
+
+                if (thumbnailList1.Items.Count > 5 && !SelectedIndices.Any() && !recover)
+                    thumbnailList1.EnsureVisible(thumbnailList1.Items.Count - 1);
             }
 
             SetThumbnailSpacing(thumbnailSize);
@@ -2635,7 +2643,8 @@ namespace NAPS2.WinForms
                 }
                 else
                 {
-                   await Task.Run (() => ImportDirect(data, false));
+                    await Task.Yield();
+                    ImportDirect(data, false);
                 }
             }
             else if (e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -2650,7 +2659,8 @@ namespace NAPS2.WinForms
 
                 }
                 var data = (string[])e.Data.GetData(DataFormats.FileDrop);
-                await Task.Run (() => ImportFiles(data));
+                await Task.Yield();
+                ImportFiles(data);
             }
             thumbnailList1.InsertionMark.Index = -1;
         }
@@ -2892,7 +2902,7 @@ namespace NAPS2.WinForms
                     UserConfigManager.Save();
                     UpdateToolbar();
                     
-                }
+                }         
             }         
         }
         public NotificationManager GetNotificationManager()

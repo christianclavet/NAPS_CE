@@ -192,6 +192,7 @@ namespace NAPS2.Scan.Images
                 thumbnail?.Dispose();
                 thumbnail = bitmap;
                 thumbnailState = state ?? transformState;
+                
             }
             ThumbnailChanged?.Invoke(this, new EventArgs());
         }
