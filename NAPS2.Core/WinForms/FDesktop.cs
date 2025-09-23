@@ -901,19 +901,22 @@ namespace NAPS2.WinForms
                 if (!thumbnailList1.InvokeRequired)
                 return;
 
-                thumbnailList1.Invoke(() => {
-                thumbnailList1.AddedImages(imageList.Images, fore, recover); 
+                thumbnailList1.Invoke(() =>
+                {
+                    thumbnailList1.AddedImages(imageList.Images, fore, recover);
 
-                if (thumbnailList1.Items.Count > 5 && !SelectedIndices.Any() && !recover)
-                    thumbnailList1.EnsureVisible(thumbnailList1.Items.Count - 1);
-           
-            
-            //if (!recover)
-            //    GetPreviewImage(imageList.Images[imageList.Images.Count-1], true);
+                    if (thumbnailList1.Items.Count > 5 && !SelectedIndices.Any() && !recover)
+                        thumbnailList1.EnsureVisible(thumbnailList1.Items.Count - 1);
 
-            //Scroll the list so that every new item that get added can be viewed. -CC
-            //Should not do it if a selection is active.
-                if (thumbnailList1.Items.Count > 5 && !SelectedIndices.Any() && !recover)
+                });
+                //if (!recover)
+                //    GetPreviewImage(imageList.Images[imageList.Images.Count-1], true);
+
+                //Scroll the list so that every new item that get added can be viewed. -CC
+                //Should not do it if a selection is active.
+                thumbnailList1.Invoke(() =>
+                {
+                    if (thumbnailList1.Items.Count > 5 && !SelectedIndices.Any() && !recover)
                     thumbnailList1.EnsureVisible(thumbnailList1.Items.Count - 1);
                 });
 
