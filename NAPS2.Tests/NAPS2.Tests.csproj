@@ -113,6 +113,9 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Magick.NET-Q8-AnyCPU">
+      <Version>14.10.2</Version>
+    </PackageReference>
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces">
       <Version>9.0.9</Version>
     </PackageReference>

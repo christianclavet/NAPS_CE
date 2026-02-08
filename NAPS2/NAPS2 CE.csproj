@@ -309,6 +309,9 @@
     <Service Include="{508349B6-6B84-4DF5-91F0-309BEEBAD82D}" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Magick.NET-Q8-AnyCPU">
+      <Version>14.10.2</Version>
+    </PackageReference>
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces">
       <Version>9.0.9</Version>
     </PackageReference>
