@@ -80,10 +80,12 @@ namespace NAPS2.WinForms
             btnOK.BringToFront();
             if (SelectedImages != null && SelectedImages.Count > 1)
             {
+                checkboxApplyToSelected.Checked = true;
                 checkboxApplyToSelected.Text = string.Format(checkboxApplyToSelected.Text, SelectedImages.Count);
             }
             else
             {
+                checkboxApplyToSelected.Checked = false;
                 ConditionalControls.Hide(checkboxApplyToSelected, 6);
             }
 
