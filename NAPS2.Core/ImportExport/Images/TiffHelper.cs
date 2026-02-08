@@ -108,7 +108,7 @@ namespace NAPS2.ImportExport.Images
 
                         using (MagickImage image = new MagickImage(m.Image.Create(bitmap0)))
                         {
-                            for (int i = 1; i < snapshots.Count; i++)
+                            for (int i = 0; i < snapshots.Count; i++)
                             {
                                 if (snapshots[i] == null)
                                     break;
