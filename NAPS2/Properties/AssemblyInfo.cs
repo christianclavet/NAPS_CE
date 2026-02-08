@@ -12,7 +12,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("NAPS2 - Cricri Edition")]
-[assembly: AssemblyCopyright("Copyright 2009, 2012-2025 NAPS2 Contributors;")]
+[assembly: AssemblyCopyright("Copyright 2009, 2012-2026 NAPS2 Contributors;")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
