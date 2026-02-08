@@ -2,13 +2,6 @@
 ## NOTES (About this fork): 
 Here is the current release 
 
-
-## Darkmode activated
-<img src="https://github.com/christianclavet/naps2-cricri-edition/assets/13395943/1fab8b6f-e11d-42e5-ade6-ac5c14701c54" width="729" height="364">
-
-## Darkmode deactivated
-<img src="https://github.com/christianclavet/naps2-cricri-edition/assets/13395943/844162e4-a2cd-4b72-bb6d-893a076954ce" width="729" height="364">
-
 This is an unofficial release. This fork could be compared to Naps2 v6.2, as it's based upon Naps 6.1.2 Official.
 
 This fork and versions have these new features that have been added:
