@@ -255,20 +255,23 @@ namespace NAPS2.Scan.Twain
                                 ? ScanBitDepth.BlackWhite
                             : ScanBitDepth.C24Bit;
 
-                            var image = new ScannedImage(result, bitDepth, scanProfile.MaxQuality, scanProfile.Quality);                            
-                            
-                            if (scanParams.DetectPatchCodes)
+                            var image = new ScannedImage(result, bitDepth, scanProfile.MaxQuality, scanProfile.Quality);
+                            string texte = eventArgs.GetExtImageInfo(ExtendedImageInfo.BarcodeText).ToString();
+
+
+                            image.BarCodeData = texte;
+                            /* if (scanParams.DetectPatchCodes)
                             {
-                                foreach (var patchCodeInfo in eventArgs.GetExtImageInfo(ExtendedImageInfo.PatchCode))
-                                {
-                                    if (patchCodeInfo.ReturnCode == ReturnCode.Success)
-                                    {
-                                        image.PatchCode = GetPatchCode(patchCodeInfo);
-                                        image.BarCodeData = GetBarCode();
-                                       // Debug.WriteLine("\n\nBARCODE BARCODE BARCODE : " + image.PatchCode + "\n\n");
-                                    }
-                                }
-                            }
+                                 foreach (var patchCodeInfo in eventArgs.GetExtImageInfo(ExtendedImageInfo.BarcodeText))
+                                 {
+                                     if (patchCodeInfo.ReturnCode == ReturnCode.Success)
+                                     {
+                                         //image.PatchCode = GetPatchCode(patchCodeInfo);
+                                         image.BarCodeData = GetBarCode();
+                                        // Debug.WriteLine("\n\nBARCODE BARCODE BARCODE : " + image.PatchCode + "\n\n");
+                                     }
+                                 }
+                             }*/
 
                             //Barcode reading not working directly from twain. Only from the lib.
                             /*foreach (var barCodeInfo in eventArgs.GetExtImageInfo(ExtendedImageInfo.PageSide))
