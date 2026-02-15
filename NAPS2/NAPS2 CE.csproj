@@ -313,7 +313,7 @@
       <Version>14.10.2</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces">
-      <Version>9.0.9</Version>
+      <Version>10.0.3</Version>
     </PackageReference>
     <PackageReference Include="Ninject">
       <Version>3.3.6</Version>
