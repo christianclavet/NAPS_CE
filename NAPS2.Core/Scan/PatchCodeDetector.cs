@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Linq;
 using System.Numerics;
 using ZXing;
@@ -18,7 +19,20 @@ namespace NAPS2.Scan
         public static string DataBarcode { get; set; }
 
         public static string DetectBarcode(Bitmap bitmap)
-        {                       
+        {
+            if (bitmap == null)
+            {
+                DataBarcode = "";
+                return DataBarcode;
+            }
+
+            // Convertir en 32 bits ARGB si nécessaire
+            if (bitmap.PixelFormat != PixelFormat.Format32bppArgb)
+            {
+                // Cloner l'image dans le format requis
+                bitmap = bitmap.Clone(new Rectangle(0, 0, bitmap.Width, bitmap.Height), PixelFormat.Format32bppArgb);
+            }
+
             var reader  = new BarcodeReader
             {
                     AutoRotate = true,
@@ -28,11 +42,17 @@ namespace NAPS2.Scan
             var barcodeResult = reader.DecodeMultiple(bitmap);
             if (barcodeResult != null) //Something is detected
             {
-                //barcodeResult[0].ResultPoints[0].ToString();
                 DataBarcode = barcodeResult[0].Text;
-                if (barcodeResult.Count() > 1) {
-                    DataBarcode += "^" + barcodeResult[1].Text;
+                for (int i = 0; i < barcodeResult.Count(); i++) 
+                {
+
+                    if (barcodeResult.Count() > 1 && i>0)
+                    {
+                        DataBarcode += "^" + barcodeResult[i].Text;
+                    }
+                    Debug.WriteLine("Barcode " + i + ": " + barcodeResult[i].Text);
                 }
+                //barcodeResult[0].ResultPoints[0].ToString();
             }
             else
                 DataBarcode = "";
