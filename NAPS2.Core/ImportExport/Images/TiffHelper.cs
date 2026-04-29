@@ -32,6 +32,9 @@ namespace NAPS2.ImportExport.Images
         {
             try
             {
+                // Limit memory to 2 GB; anything larger will use disk cache
+                ResourceLimits.Memory = 2000 * 1024 * 1024;
+
                 var m = new MagickFactory();
                 ImageCodecInfo codecInfo = GetCodecForString("TIFF");
 
