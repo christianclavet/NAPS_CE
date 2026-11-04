@@ -421,11 +421,8 @@ namespace NAPS2.WinForms
                         list.Add(GetThumbnail(image));
                     }
 
+                    // Bitmaps are owned by the ImageList from here on; do not dispose them
                     ilThumbnailList.Images.AddRange(list.ToArray());
-                    foreach (var thumb in list)
-                    {
-                        ReleaseThumbnail(thumb);
-                    }
                     EndUpdate();
                 }
                 
@@ -450,7 +447,7 @@ namespace NAPS2.WinForms
 
         }
 
-        // The ImageList copies each bitmap it receives, so the caller keeps ownership and must release it.
+        // Only used for bitmaps that are NOT handed to the ImageList (e.g. when no thumbnail is set).
         // The shared placeholder is cached for reuse and must not be disposed here.
         private void ReleaseThumbnail(Bitmap thumb)
         {
@@ -460,16 +457,16 @@ namespace NAPS2.WinForms
             }
         }
 
+        // The ImageList keeps a reference to the bitmap until its native handle is created, so the bitmap
+        // must NOT be disposed here. Disposing it made the list show broken thumbnails.
         private void SetImageAt(int index, Bitmap thumb)
         {
             ilThumbnailList.Images[index] = thumb;
-            ReleaseThumbnail(thumb);
         }
 
         private void AddImage(Bitmap thumb)
         {
             ilThumbnailList.Images.Add(thumb);
-            ReleaseThumbnail(thumb);
         }
 
         private Bitmap GetThumbnail(ScannedImage img)
