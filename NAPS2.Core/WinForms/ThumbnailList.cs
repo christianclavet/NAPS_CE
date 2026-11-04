@@ -369,6 +369,12 @@ namespace NAPS2.WinForms
                         documentCount = Groups.Count + 1;
                         AddGroup(MiscResources.Document + documentCount.ToString() + ": " + document.name);
                     }
+                    // Items are created by AddedImages. If they do not exist yet, stop instead of indexing past the end,
+                    // which would throw and leave the ListView in BeginUpdate (blank).
+                    if (i >= Items.Count)
+                    {
+                        break;
+                    }
                     Groups[documentCount - 1].Items.Add(Items[i]);
                     SetGroupState(ListViewGroupState.Collapsible);
                     SetGroupFooter(Groups[documentCount - 1], (Groups[documentCount - 1].Items.Count).ToString() + MiscResources.PagesDoc);

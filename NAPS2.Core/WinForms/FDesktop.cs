@@ -929,8 +929,8 @@ namespace NAPS2.WinForms
             }
             if (anyPlaced)
             {
-                // Pages are placed asynchronously now, so refresh the groups here rather than relying on callers
-                thumbnailList1.GroupRefresh(imageList.Images);
+                // Groups are rebuilt by AddedImages once the new list items exist (see AddThumbnails).
+                // Calling GroupRefresh here, before those items exist, left the ListView suspended and blank.
                 UpdateToolbar();
                 changeTracker.Made();
             }
