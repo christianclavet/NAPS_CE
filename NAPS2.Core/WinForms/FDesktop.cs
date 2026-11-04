@@ -191,6 +191,11 @@ namespace NAPS2.WinForms
             //This is used the tell this class that it's in recovery mode.
             //Once the recovery is completed, it will be put to false
             //Selecting an item, while recovering was perceived like a rescan from file. It's not allowed now using this method.
+            if (!recovery)
+            {
+                // Recovery ended or was cancelled: add any remaining buffered pages
+                FlushRecoveredImages();
+            }
             recover = recovery;
         }
 
@@ -779,47 +784,59 @@ namespace NAPS2.WinForms
 
         }
 
+        // Recovered pages are buffered and added to the UI in batches, instead of one UI round-trip per page
+        private const int RecoveryBatchSize = 25;
+        private readonly List<ScannedImage> pendingRecoveredImages = new List<ScannedImage>();
+
         public Action<ScannedImage> ReceiveRecovery()
         {
-            ScannedImage last = null;
             return scannedImage =>
             {
-                SafeInvoke(() =>
+                bool flush;
+                lock (pendingRecoveredImages)
                 {
-                    int lastIndex = 0;
-
-                    lock (imageList)
-                    {
-                        // Default to the end of the list
-                        int index = imageList.Images.Count;
-
-                        // Use the index after the last image from the same source (if it exists)
-                        if (last != null)
-                        {
-                            lastIndex = imageList.Images.IndexOf(last);
-                            if (lastIndex != -1)
-                            {
-                                index = lastIndex + 1;
-                            }
-                        }
-
-                        imageList.Images.Add(scannedImage);
-                        Task.Run ( ()=> AddThumbnails());
-
-                        scannedImage.ThumbnailChanged += ImageThumbnailChanged;
-                        scannedImage.ThumbnailInvalidated += ImageThumbnailInvalidated;
-                        last = scannedImage;
-
-                    }
-                    UpdateToolbar();
-                    changeTracker.Made();
-                });
-
-                // Trigger thumbnail rendering just in case the received image is out of date
-                renderThumbnailsWaitHandle.Set();
-
+                    pendingRecoveredImages.Add(scannedImage);
+                    flush = pendingRecoveredImages.Count >= RecoveryBatchSize;
+                }
+                if (flush)
+                {
+                    FlushRecoveredImages();
+                }
             };
+        }
 
+        // Adds the buffered recovered pages to the list in a single UI update
+        private void FlushRecoveredImages()
+        {
+            List<ScannedImage> batch;
+            lock (pendingRecoveredImages)
+            {
+                if (pendingRecoveredImages.Count == 0)
+                {
+                    return;
+                }
+                batch = pendingRecoveredImages.ToList();
+                pendingRecoveredImages.Clear();
+            }
+
+            SafeInvoke(() =>
+            {
+                lock (imageList)
+                {
+                    foreach (var image in batch)
+                    {
+                        imageList.Images.Add(image);
+                        image.ThumbnailChanged += ImageThumbnailChanged;
+                        image.ThumbnailInvalidated += ImageThumbnailInvalidated;
+                    }
+                    Task.Run(() => AddThumbnails());
+                }
+                UpdateToolbar();
+                changeTracker.Made();
+            });
+
+            // Trigger thumbnail rendering for the newly added pages
+            renderThumbnailsWaitHandle.Set();
         }
 
         /// <summary>
@@ -832,68 +849,144 @@ namespace NAPS2.WinForms
             ScannedImage last = null;
             return scannedImage =>
             {
-                SafeInvoke(() =>
+                // Queue the page and return at once, so the scan thread does not wait for the UI for every page.
+                // The queue is drained in order on the UI thread, in one pass per batch (see ProcessScannedImageQueue).
+                lock (scannedImageQueue)
                 {
-                    int lastIndex = 0;
-                    
-                    lock (imageList)
+                    scannedImageQueue.Enqueue(new QueuedScannedImage(scannedImage, last));
+                    last = scannedImage;
+                    if (scannedImageQueueScheduled)
                     {
-                        // Default to the end of the list
-                        int index = imageList.Images.Count;
-
-                        if (!this.insert) // Reset the page counter for insertion since it's not in insert mode.
-                            insertCounter = 0;
-                        
-                        // Use the index after the last image from the same source (if it exists)
-                        if (last != null)
-                        {
-                            lastIndex = imageList.Images.IndexOf(last);
-                            if (lastIndex != -1)
-                            {
-                                index = lastIndex + 1;
-                            }
-                        }
-                        if (SelectedIndices.Any() && !this.insert && !recover) // rescan will replace image only not add anything
-                        {
-                            //Rescan mode
-                            var origSide = imageList.Images[SelectedIndices.First()].SheetSide; //The face of the page on the sheet must be preserved
-                            imageList.Delete(Enumerable.Range(SelectedIndices.First(), 1));
-                            imageList.Images.Insert(SelectedIndices.First(), scannedImage);
-                            scannedImage.MovedTo(SelectedIndices.First());
-                            scannedImage.SheetSide = origSide;
-                            UpdateThumbnails(Enumerable.Range(SelectedIndices.First(),1), true,true);
-                        } else
-                        {
-                            // Insert Mode
-                            if (this.insert) //Try to insert
-                            {
-                                index = SelectedIndices.First() + this.insertCounter;
-                                insertCounter++;
-                                imageList.Images.Insert(index, scannedImage);
-                                scannedImage.MovedTo(index);
-                            }
-                            else
-                            {
-                                imageList.Images.Add(scannedImage);
-                            }
-
-                            
-                            Task.Run ( () => AddThumbnails());
-                        }
-                        scannedImage.ThumbnailChanged += ImageThumbnailChanged;
-                        scannedImage.ThumbnailInvalidated += ImageThumbnailInvalidated;
-                        last = scannedImage;
-
+                        return;
                     }
-                    UpdateToolbar();
-                    changeTracker.Made();
-                });
-
-                // Trigger thumbnail rendering just in case the received image is out of date
-                renderThumbnailsWaitHandle.Set();
-               
+                    scannedImageQueueScheduled = true;
+                }
+                try
+                {
+                    BeginInvoke((Action)ProcessScannedImageQueue);
+                }
+                catch (Exception e) when (e is ObjectDisposedException || e is InvalidOperationException)
+                {
+                    // The form is closing or its handle is not available. Drop the schedule flag so later pages can
+                    // schedule again, instead of leaving the queue stuck with the flag set.
+                    lock (scannedImageQueue)
+                    {
+                        scannedImageQueueScheduled = false;
+                    }
+                }
             };
-            
+        }
+
+        // A page waiting for the UI, plus the page it followed when it was received (used for placement)
+        private class QueuedScannedImage
+        {
+            public QueuedScannedImage(ScannedImage image, ScannedImage previous)
+            {
+                Image = image;
+                Previous = previous;
+            }
+
+            public ScannedImage Image { get; }
+
+            public ScannedImage Previous { get; }
+        }
+
+        // Pages received from scanning/importing, waiting to be placed on the UI thread.
+        // scannedImageQueueScheduled is true while a ProcessScannedImageQueue call is pending. Both fields are
+        // only accessed under lock(scannedImageQueue).
+        private readonly Queue<QueuedScannedImage> scannedImageQueue = new Queue<QueuedScannedImage>();
+        private bool scannedImageQueueScheduled;
+
+        // Set while placing a batch to request one thumbnail refresh at the end. Only used on the UI thread.
+        private bool pendingThumbnailRefresh;
+
+        // Runs on the UI thread. Places every queued page in arrival order, then updates the UI once for the batch.
+        private void ProcessScannedImageQueue()
+        {
+            List<QueuedScannedImage> batch;
+            lock (scannedImageQueue)
+            {
+                batch = scannedImageQueue.ToList();
+                scannedImageQueue.Clear();
+                scannedImageQueueScheduled = false;
+            }
+            if (batch.Count == 0)
+            {
+                return;
+            }
+
+            bool anyPlaced = false;
+            pendingThumbnailRefresh = false;
+            foreach (var item in batch)
+            {
+                anyPlaced |= PlaceScannedImage(item.Image, item.Previous);
+            }
+
+            if (pendingThumbnailRefresh)
+            {
+                // A single thumbnail refresh covers every page added in this batch
+                Task.Run(() => AddThumbnails());
+            }
+            if (anyPlaced)
+            {
+                // Pages are placed asynchronously now, so refresh the groups here rather than relying on callers
+                thumbnailList1.GroupRefresh(imageList.Images);
+                UpdateToolbar();
+                changeTracker.Made();
+            }
+            // Trigger thumbnail rendering just in case the received images are out of date
+            renderThumbnailsWaitHandle.Set();
+        }
+
+        // Places one received page in the list. Same placement rules as before; runs on the UI thread.
+        private bool PlaceScannedImage(ScannedImage scannedImage, ScannedImage previous)
+        {
+            lock (imageList)
+            {
+                // Default to the end of the list
+                if (!this.insert) // Reset the page counter for insertion since it's not in insert mode.
+                    insertCounter = 0;
+
+                // Placement follows the previous page from the same source; the insert/rescan branches below
+                // decide the final position, as before.
+                bool thumbnailsChanged;
+                if (SelectedIndices.Any() && !this.insert && !recover) // rescan will replace image only not add anything
+                {
+                    //Rescan mode
+                    var origSide = imageList.Images[SelectedIndices.First()].SheetSide; //The face of the page on the sheet must be preserved
+                    imageList.Delete(Enumerable.Range(SelectedIndices.First(), 1));
+                    imageList.Images.Insert(SelectedIndices.First(), scannedImage);
+                    scannedImage.MovedTo(SelectedIndices.First());
+                    scannedImage.SheetSide = origSide;
+                    UpdateThumbnails(Enumerable.Range(SelectedIndices.First(), 1), true, true);
+                    thumbnailsChanged = false;
+                }
+                else
+                {
+                    // Insert Mode
+                    if (this.insert) //Try to insert
+                    {
+                        int index = SelectedIndices.First() + this.insertCounter;
+                        insertCounter++;
+                        imageList.Images.Insert(index, scannedImage);
+                        scannedImage.MovedTo(index);
+                    }
+                    else
+                    {
+                        imageList.Images.Add(scannedImage);
+                    }
+                    thumbnailsChanged = true;
+                }
+                scannedImage.ThumbnailChanged += ImageThumbnailChanged;
+                scannedImage.ThumbnailInvalidated += ImageThumbnailInvalidated;
+
+                if (thumbnailsChanged)
+                {
+                    // One thumbnail refresh is started per batch (see ProcessScannedImageQueue)
+                    pendingThumbnailRefresh = true;
+                }
+                return true;
+            }
         }
 
         private async Task AddThumbnails()

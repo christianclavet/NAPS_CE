@@ -141,6 +141,8 @@ namespace NAPS2.Recovery
                         finally
                         {
                             ReleaseFolderLock();
+                            // Also runs after an exception: ends recovery mode and flushes any buffered pages
+                            FDesktop.GetInstance().SetRecover(false);
                             GC.Collect();
                         }
                     });
@@ -192,7 +194,8 @@ namespace NAPS2.Recovery
                         using (var bitmap = new Bitmap(imagePath))
                         //using (var bitmap = new Bitmap(20,20))
                         {
-                            scannedImage = new ScannedImage(bitmap, indexImage.BitDepth, indexImage.HighQuality, -1);                            
+                            scannedImage = ScannedImage.FromRecoveryFile(imagePath, indexImage.BitDepth, indexImage.HighQuality)
+                                ?? new ScannedImage(bitmap, indexImage.BitDepth, indexImage.HighQuality, -1);                            
                             if (bitmap != null)
                             {
                                 Size size = bitmap.Size;

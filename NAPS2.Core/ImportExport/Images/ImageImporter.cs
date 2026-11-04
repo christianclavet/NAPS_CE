@@ -35,6 +35,14 @@ namespace NAPS2.ImportExport.Images
                         return;
                     }
 
+                    // Fast path: a single-page PNG/JPEG with no EXIF rotation and no slicing is stored as-is.
+                    // Copying the file avoids decoding and re-encoding every page, which is the main cost of importing.
+                    if (importParams.Slice == Slice.Default && TryImportEncodedFileDirectly(filePath, source))
+                    {
+                        source.Done();
+                        return;
+                    }
+
                     Bitmap toImport;
                     try
                     {
@@ -98,6 +106,44 @@ namespace NAPS2.ImportExport.Images
                 }
             }, TaskCreationOptions.LongRunning);
             return source;
+        }
+
+        // Returns true if the file was imported directly (single page, no EXIF rotation). Returns false
+        // to let the caller use the normal decode path. Nothing is put in the source when false is returned.
+        private bool TryImportEncodedFileDirectly(string filePath, ScannedImageSource.Concrete source)
+        {
+            var ext = Path.GetExtension(filePath).ToLowerInvariant();
+            ImageFormat format;
+            if (ext == ".png")
+            {
+                format = ImageFormat.Png;
+            }
+            else if (ext == ".jpg" || ext == ".jpeg")
+            {
+                format = ImageFormat.Jpeg;
+            }
+            else
+            {
+                return false;
+            }
+
+            // Read the header only: checks frame count and EXIF orientation without decoding the pixels
+            using (var header = Image.FromFile(filePath))
+            {
+                if (header.GetFrameCount(FrameDimension.Page) != 1)
+                {
+                    return false;
+                }
+                if (header.PropertyIdList.Contains(exifOrientationID))
+                {
+                    return false;
+                }
+            }
+
+            var image = ScannedImage.FromImportedFile(filePath, format, ScanBitDepth.C24Bit, IsLossless(format));
+            image.RecoveryIndexImage.SeparatorName = filePath;
+            source.Put(image);
+            return true;
         }
 
         // Rotate the bipmap from the exif data

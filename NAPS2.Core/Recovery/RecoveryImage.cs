@@ -95,10 +95,17 @@ namespace NAPS2.Recovery
         {
             if (_recoveryIndexManager != null)
             {
+                // Wait for each page's background encode, so only pages that have a file are indexed.
+                // This happens before taking the lock: the encode itself needs the lock to save the index.
+                var indexImages = images.Select(x =>
+                {
+                    x.WaitForRecoveryFile();
+                    return x.RecoveryIndexImage;
+                }).ToList();
                 lock (_recoveryIndexManager)
                 {
                     _recoveryIndexManager.Index.Images.Clear();
-                    _recoveryIndexManager.Index.Images.AddRange(images.Select(x => x.RecoveryIndexImage));
+                    _recoveryIndexManager.Index.Images.AddRange(indexImages);
                     _recoveryIndexManager.Save();
                 }
             }

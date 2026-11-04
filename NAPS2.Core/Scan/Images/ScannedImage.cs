@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 using NAPS2.ImportExport;
 using NAPS2.Logging;
@@ -40,6 +41,15 @@ namespace NAPS2.Scan.Images
         private bool disposed;
         private int snapshotCount;
 
+        // Background encoding state for images created from a bitmap.
+        // Until the encode finishes, the image has no file on disk and its index entry is not saved yet.
+        // recoveryReady is only changed while holding lock(this).
+        private Task encodeTask;
+        private bool recoveryReady = true;
+
+        // Limits how many bitmap copies can wait for encoding at once, which bounds memory use.
+        private static readonly SemaphoreSlim pendingEncodes = new SemaphoreSlim(3, 3);
+
         public static ScannedImage FromSinglePagePdf(string pdfPath, bool copy)
         {
             return new ScannedImage(pdfPath, copy);
@@ -47,35 +57,77 @@ namespace NAPS2.Scan.Images
 
         public void Update(string barCodeData)
         {
+            WaitForRecoveryFile();
             recoveryImage.barCode = barCodeData;
             recoveryImage.Save();
         }
 
         public void Save()
         {
+            WaitForRecoveryFile();
             recoveryImage.Save();
         }
 
         public ScannedImage(Bitmap img, ScanBitDepth bitDepth, bool highQuality, int quality)
         {
             this.highQuality = highQuality;
-            //string tempFilePath = ScannedImageHelper.SaveSmallestBitmap(img, bitDepth, highQuality, quality, out ImageFormat fileFormat);
-            // Send this to the functions but do not wait for them. Will run async.
-            _ = CreateRecovery(img, bitDepth, highQuality, quality);
+            transformList = new List<Transform>();
+
+            // The format comes from the scan profile and is decided here, without encoding.
+            var format = ScannedImageHelper.GetRecoveryFormat(img, bitDepth, highQuality);
+            recoveryImage = RecoveryImage.CreateNew(format, bitDepth, highQuality, transformList);
+            recoveryReady = false;
+
+            // The caller usually disposes its bitmap right after this constructor, so encode a copy.
+            // Waiting here applies back-pressure when several encodes are already pending.
+            pendingEncodes.Wait();
+            Bitmap copy;
+            try
+            {
+                copy = (Bitmap)img.Clone();
+            }
+            catch
+            {
+                pendingEncodes.Release();
+                throw;
+            }
+            encodeTask = Task.Run(() => EncodeInBackground(copy, bitDepth, quality));
            
         }
 
-        public async Task CreateRecovery(Bitmap img, ScanBitDepth bitDepth, bool highQuality, int quality)
+        // Runs on a background thread. Encodes the copy into the recovery file, then adds the index entry.
+        private void EncodeInBackground(Bitmap copy, ScanBitDepth bitDepth, int quality)
         {
-            //This method will cause lot of latency if not threaded.
-            string tempFilePath = ScannedImageHelper.SaveSmallestBitmap(img, bitDepth, highQuality, quality, out ImageFormat fileFormat);
-            transformList = new List<Transform>();
-            recoveryImage = RecoveryImage.CreateNew(fileFormat, bitDepth, highQuality, transformList);
-            //File.Move(tempFilePath, recoveryImage.FilePath);
-            //recoveryImage.Save();
-            //await Task.Run(() => recoveryImage = RecoveryImage.CreateNew(fileFormat, bitDepth, highQuality, transformList));
-            await Task.Run(() => File.Move(tempFilePath, recoveryImage.FilePath));
-            await Task.Run(() => recoveryImage.Save());
+            try
+            {
+                ScannedImageHelper.EncodeForRecovery(copy, recoveryImage.FileFormat, bitDepth, quality, recoveryImage.FilePath);
+                lock (this)
+                {
+                    // Saves the index with the current transforms, including any added while encoding
+                    recoveryReady = true;
+                    recoveryImage.Save();
+                }
+            }
+            catch (Exception e)
+            {
+                // The image stays out of the recovery index. Previously this failure was not reported at all.
+                Log.ErrorException("Error encoding a scanned image for recovery", e);
+            }
+            finally
+            {
+                copy.Dispose();
+                pendingEncodes.Release();
+            }
+        }
+
+        /// <summary>
+        /// Blocks until the background encode has finished, so the recovery file and index entry exist.
+        /// Call this before anything that needs the file on disk. It returns immediately for images that
+        /// were created from a file or from the recovery index.
+        /// </summary>
+        public void WaitForRecoveryFile()
+        {
+            encodeTask?.Wait();
         }
 
         //Store the informations inside the image to save to the recovery
@@ -110,6 +162,43 @@ namespace NAPS2.Scan.Images
             recoveryImage.Save();
         }
 
+        // Stores an already encoded image file in the recovery folder by copying it (used by the import fast path).
+        public static ScannedImage FromImportedFile(string imagePath, ImageFormat format, ScanBitDepth bitDepth, bool highQuality)
+        {
+            return new ScannedImage(imagePath, format, bitDepth, highQuality);
+        }
+
+        // Reuses an already encoded recovery file by copying it, instead of decoding and re-encoding the page.
+        // Returns null when the file is not a PNG or JPEG, so the caller can fall back to the bitmap path.
+        public static ScannedImage FromRecoveryFile(string imagePath, ScanBitDepth bitDepth, bool highQuality)
+        {
+            string ext = Path.GetExtension(imagePath);
+            ImageFormat format;
+            if (ext.Equals(".png", StringComparison.OrdinalIgnoreCase))
+            {
+                format = ImageFormat.Png;
+            }
+            else if (ext.Equals(".jpg", StringComparison.OrdinalIgnoreCase))
+            {
+                format = ImageFormat.Jpeg;
+            }
+            else
+            {
+                return null;
+            }
+            return new ScannedImage(imagePath, format, bitDepth, highQuality);
+        }
+
+        private ScannedImage(string imagePath, ImageFormat format, ScanBitDepth bitDepth, bool highQuality)
+        {
+            this.highQuality = highQuality;
+            transformList = new List<Transform>();
+            recoveryImage = RecoveryImage.CreateNew(format, bitDepth, highQuality, transformList);
+            File.Copy(imagePath, recoveryImage.FilePath);
+            recoveryImage.Save();
+        }
+
+
         public int SheetSide { get; set; }
 
         public PatchCode PatchCode { get; set; }
@@ -123,12 +212,28 @@ namespace NAPS2.Scan.Images
 
         public RecoveryIndexImage RecoveryIndexImage => recoveryImage.IndexImage;
 
-        public string RecoveryFilePath => recoveryImage.FilePath;
+        public string RecoveryFilePath
+        {
+            get
+            {
+                WaitForRecoveryFile();
+                return recoveryImage.FilePath;
+            }
+        }
 
-        public long Size => new FileInfo(recoveryImage.FilePath).Length;
+        public long Size
+        {
+            get
+            {
+                WaitForRecoveryFile();
+                return new FileInfo(recoveryImage.FilePath).Length;
+            }
+        }
 
         public void Dispose()
         {
+            // Wait first, so the encode does not write a file after it has been deleted
+            WaitForRecoveryFile();
             lock (this)
             {
                 disposed = true;
@@ -149,6 +254,7 @@ namespace NAPS2.Scan.Images
 
         public void AddTransform(Transform transform)
         {
+            bool save;
             lock (this)
             {
                 // Also updates the recovery index since they reference the same list
@@ -157,13 +263,19 @@ namespace NAPS2.Scan.Images
                     return;
                 }
                 transformState++;
+                // While the file is still encoding, the encode step saves the index and includes this change
+                save = recoveryReady;
             }
-            recoveryImage.Save();
+            if (save)
+            {
+                recoveryImage.Save();
+            }
             ThumbnailInvalidated?.Invoke(this, new EventArgs());
         }
 
         public void ResetTransforms()
         {
+            bool save;
             lock (this)
             {
                 if (transformList.Count == 0)
@@ -172,8 +284,12 @@ namespace NAPS2.Scan.Images
                 }
                 transformList.Clear();
                 transformState++;
+                save = recoveryReady;
             }
-            recoveryImage.Save();
+            if (save)
+            {
+                recoveryImage.Save();
+            }
             ThumbnailInvalidated?.Invoke(this, new EventArgs());
         }
 
@@ -207,6 +323,8 @@ namespace NAPS2.Scan.Images
 
         public void MovedTo(int index)
         {
+            // Move requires the index entry to exist, so wait for the encode
+            WaitForRecoveryFile();
             recoveryImage.Move(index);
         }
 
@@ -270,6 +388,7 @@ namespace NAPS2.Scan.Images
 
             public void GetObjectData(SerializationInfo info, StreamingContext context)
             {
+                Source.WaitForRecoveryFile();
                 info.AddValue("RecoveryIndexImage", Source.RecoveryIndexImage);
                 info.AddValue("TransformList", TransformList);
                 info.AddValue("TransformState", TransformState);
