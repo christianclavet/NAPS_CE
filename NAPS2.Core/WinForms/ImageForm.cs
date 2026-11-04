@@ -22,6 +22,9 @@ namespace NAPS2.WinForms
         private Timer previewTimer;
         private bool closed;
 
+        // Private lock object: locking on the form itself can deadlock with Control.Invoke
+        private readonly object syncRoot = new object();
+
         private ImageForm()
         {
             // For the designer only
@@ -101,7 +104,7 @@ namespace NAPS2.WinForms
             workingImage2 = (Bitmap)workingImage.Clone();
 
             InitTransform();
-            lock (this)
+            lock (syncRoot)
             {
                 initComplete = true;
             }
@@ -115,25 +118,32 @@ namespace NAPS2.WinForms
             {
                 previewTimer = new Timer(_ =>
                 {
-                    lock (this)
+                    lock (syncRoot)
                     {
                         if (!initComplete || !IsHandleCreated || !previewOutOfDate || working) return;
                         working = true;
                         previewOutOfDate = false;
                     }
-                    var bitmap = RenderPreview();
-                    SafeInvoke(() =>
+                    try
                     {
-                        PictureBox.Image?.Dispose();
-                        PictureBox.Image = bitmap;
-                    });
-                    lock (this)
+                        var bitmap = RenderPreview();
+                        SafeInvoke(() =>
+                        {
+                            PictureBox.Image?.Dispose();
+                            PictureBox.Image = bitmap;
+                        });
+                    }
+                    finally
                     {
-                        working = false;
+                        // Always reset the flag, even if rendering throws, or the preview would stop updating
+                        lock (syncRoot)
+                        {
+                            working = false;
+                        }
                     }
                 }, null, 0, 100);
             }
-            lock (this)
+            lock (syncRoot)
             {
                 previewOutOfDate = true;
             }

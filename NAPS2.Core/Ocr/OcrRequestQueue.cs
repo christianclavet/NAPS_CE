@@ -23,6 +23,21 @@ namespace NAPS2.Ocr
 
         private OcrOperation currentOp;
 
+        // Raised when a background OCR job starts or finishes (may be raised on worker threads)
+        public event EventHandler OcrBusyChanged;
+
+        // True while a background OCR job is in progress
+        public bool IsBusy
+        {
+            get
+            {
+                lock (this)
+                {
+                    return currentOp != null;
+                }
+            }
+        }
+
         public OcrRequestQueue(OcrManager ocrManager, IOperationProgress operationProgress)
         {
             this.ocrManager = ocrManager;
@@ -96,14 +111,40 @@ namespace NAPS2.Ocr
             return req.Result;
         }
 
+        // Cancels background OCR requests that no foreground caller is waiting for
+        public void CancelBackground()
+        {
+            lock (this)
+            {
+                foreach (var req in requestCache.Values
+                    .Where(x => x.BackgroundCount > 0 && x.ForegroundCount == 0 && x.Result == null)
+                    .ToList())
+                {
+                    req.CancelSource.Cancel();
+                    if (!req.IsProcessing)
+                    {
+                        // Not started yet: remove it from the queue and release its waiter
+                        requestCache.Remove(req.Params);
+                        req.WaitHandle.Set();
+                    }
+                }
+            }
+        }
+
         public void QueueBackground(ScannedImage.Snapshot snapshot, string tempImageFilePath, OcrParams ocrParams)
         {
             OcrRequest req;
             CancellationTokenSource cts = new CancellationTokenSource();
+            ScannedImage source = null;
+            EventHandler cancelOnImageChange = null;
             lock (this)
             {
                 var ocrEngine = ocrManager.ActiveEngine;
-                if (ocrEngine == null) return;
+                if (ocrEngine == null)
+                {
+                    SafeDelete(tempImageFilePath);
+                    return;
+                }
                 ocrParams = ocrParams ?? ocrManager.DefaultParams;
 
                 var reqParams = new OcrRequestParams(snapshot, ocrEngine, ocrParams);
@@ -111,6 +152,7 @@ namespace NAPS2.Ocr
                 // Fast path for cached results
                 if (req.Result != null)
                 {
+                    SafeDelete(tempImageFilePath);
                     return;
                 }
                 // Manage ownership of the provided temp file
@@ -124,8 +166,11 @@ namespace NAPS2.Ocr
                 }
                 // Increment the reference count
                 req.BackgroundCount += 1;
-                snapshot.Source.ThumbnailInvalidated += (sender, args) => cts.Cancel();
-                snapshot.Source.FullyDisposed += (sender, args) => cts.Cancel();
+                // Keep references to the handlers so they can be unsubscribed when the request ends
+                source = snapshot.Source;
+                cancelOnImageChange = (sender, args) => cts.Cancel();
+                source.ThumbnailInvalidated += cancelOnImageChange;
+                source.FullyDisposed += cancelOnImageChange;
                 queueWaitHandle.Release();
             }
             // If no worker threads are running, start them
@@ -151,6 +196,12 @@ namespace NAPS2.Ocr
                 catch (Exception e)
                 {
                     Log.ErrorException("Error in OcrRequestQueue.QueueBackground response task", e);
+                }
+                finally
+                {
+                    // Release the image event subscriptions so finished requests don't keep the image alive
+                    source.ThumbnailInvalidated -= cancelOnImageChange;
+                    source.FullyDisposed -= cancelOnImageChange;
                 }
             }, TaskCreationOptions.LongRunning);
         }
@@ -244,7 +295,20 @@ namespace NAPS2.Ocr
                     }
 
                     // Actually run OCR
-                    var result = next.Params.Engine.ProcessImage(tempImageFilePath, next.Params.OcrParams, next.CancelSource.Token);
+                    OcrResult result = null;
+                    try
+                    {
+                        result = next.Params.Engine.ProcessImage(tempImageFilePath, next.Params.OcrParams, next.CancelSource.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Cancelled by the user: there is no result to cache
+                    }
+                    catch (Exception e)
+                    {
+                        // Keep the worker alive: if it dies, every waiter blocks forever
+                        Log.ErrorException("Error in OCR engine", e);
+                    }
                     // Update the request
                     lock (this)
                     {
@@ -290,6 +354,7 @@ namespace NAPS2.Ocr
             if (started)
             {
                 operationProgress.ShowBackgroundProgress(op);
+            OcrBusyChanged?.Invoke(this, EventArgs.Empty);
             }
             return op;
         }
@@ -312,6 +377,7 @@ namespace NAPS2.Ocr
             if (finished)
             {
                 op.InvokeFinished();
+                OcrBusyChanged?.Invoke(this, EventArgs.Empty);
             }
         }
     }

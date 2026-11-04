@@ -43,7 +43,6 @@ using Castle.Core.Internal;
 using Org.BouncyCastle.Asn1.X509;
 using Ghostscript.NET;
 using static System.Net.Mime.MediaTypeNames;
-using Moq;
 
 #endregion
 
@@ -87,6 +86,10 @@ namespace NAPS2.WinForms
         private bool closed = false;
         private bool recover = false;
         private LayoutManager layoutManager;
+        private ToolStripButton btnOcrPrecache;
+        private ToolStripButton btnOcrCancel;
+        private bool ocrPrecacheRunning;
+        private bool ocrCancelRequested;
     
         private Bitmap bitmap; // Used for the preview window
         private bool splitter1 = false; // Used for the splitter GUI state of display
@@ -180,6 +183,7 @@ namespace NAPS2.WinForms
         protected override void OnLoad(object sender, EventArgs eventArgs)
         {
             PostInitializeComponent();
+            InitOcrPrecacheButtons();
         }
 
         public void SetRecover(bool recovery)
@@ -898,8 +902,6 @@ namespace NAPS2.WinForms
 
             await Task.Run(() => 
             {
-                if (!thumbnailList1.InvokeRequired)
-                return;
 
                 thumbnailList1.Invoke(() =>
                 {
@@ -1006,6 +1008,8 @@ namespace NAPS2.WinForms
             if (Text!=null)
                 this.Text = title + " | " + MiscResources.ProjectNameTitle + projectName;
             //this.Update();
+
+            UpdateOcrButtons();
 
             // "All" dropdown items
             tsSavePDFAll.Text = tsSaveImagesAll.Text = tsEmailPDFAll.Text = tsReverseAll.Text =
@@ -1420,7 +1424,7 @@ namespace NAPS2.WinForms
             ksm.Assign("B", tsBrightnessContrast);
             ksm.Assign("H", tsHueSaturation);
             ksm.Assign("D", tsDeskew);
-            ksm.Assign("Q", Test);
+            ksm.Assign("Q", PrecacheOcr);
             //ksm.Assign("Ctrl+Up", MoveUp);
             //ksm.Assign("Ctrl+Left", MoveUp);
             //ksm.Assign("Ctrl+Down", MoveDown);
@@ -1521,24 +1525,113 @@ namespace NAPS2.WinForms
             return null;
         }
 
-        //Used to test stuff. (Trigger via the keyboard letter Q)
-        private async void Test() 
+        // Starts OCR for all pages and caches the results (toolbar button, keyboard shortcut Q)
+        private async void PrecacheOcr() 
         {
-            // Test if I can make the OCR of all the images
-            statusStrip1.Items[0].Text = "OCR starting";
-            ScanParams param = new ScanParams();
-            for (int i = 0; i < imageList.Images.Count; i++)
+            if (ocrPrecacheRunning || !imageList.Images.Any())
             {
-                Bitmap result = await scannedImageRenderer.Render(imageList.Images[i]);
-                string tempPath = scannedImageHelper.SaveForBackgroundOcr(result, param, true);
-                scannedImageHelper.RunBackgroundOcr(imageList.Images[i], param, tempPath, true);
-                statusStrip1.Items[0].Text = "OCR doing page "+i.ToString()+" in "+ imageList.Images.Count.ToString();
+                return;
             }
-            statusStrip1.Items[0].Text = "OCR completed!";
-            MessageBox.Show("Test Completed!", "", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            if (!ocrManager.IsReady)
+            {
+                statusStrip1.Items[0].Text = "OCR non prÃªt : installez le moteur OCR (menu OCR)";
+                return;
+            }
+
+            ocrPrecacheRunning = true;
+            ocrCancelRequested = false;
+            UpdateOcrButtons();
+            var images = imageList.Images.ToList();
+            var param = new ScanParams();
+            try
+            {
+                for (int i = 0; i < images.Count && !ocrCancelRequested; i++)
+                {
+                    try
+                    {
+                        using (var rendered = await scannedImageRenderer.Render(images[i]))
+                        {
+                            if (ocrCancelRequested)
+                            {
+                                break;
+                            }
+                            string tempPath = scannedImageHelper.SaveForBackgroundOcr(rendered, param, true);
+                            scannedImageHelper.RunBackgroundOcr(images[i], param, tempPath, true);
+                        }
+                    }
+                    catch (ObjectDisposedException e)
+                    {
+                        // The page was deleted while precaching: skip it
+                        Log.ErrorException("OCR precache skipped a disposed page", e);
+                    }
+                    statusStrip1.Items[0].Text = $"OCR en file : page {i + 1} / {images.Count}";
+                }
+                statusStrip1.Items[0].Text = ocrCancelRequested ? "OCR annulÃ©" : "OCR mis en file pour toutes les pages";
+            }
+            catch (Exception e)
+            {
+                Log.ErrorException("Error during OCR precache", e);
+                statusStrip1.Items[0].Text = "Erreur pendant le prÃ©-calcul OCR";
+            }
+            finally
+            {
+                ocrPrecacheRunning = false;
+                UpdateOcrButtons();
+            }
             
             //Test Image Magic
             //ScannedImageHelper.TestImageMagick(imageList.Images[SelectedIndices.First()]);
+        }
+
+        private void InitOcrPrecacheButtons()
+        {
+            // Created in code so they can be removed easily (delete this method and its call in the constructor)
+            btnOcrPrecache = new ToolStripButton
+            {
+                Alignment = ToolStripItemAlignment.Right,
+                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                Text = "PrÃ©-calcul OCR",
+                ToolTipText = "Lance l'OCR de toutes les pages et le met en cache (raccourci : Q)",
+                Enabled = false
+            };
+            btnOcrPrecache.Click += (sender, e) => PrecacheOcr();
+
+            btnOcrCancel = new ToolStripButton
+            {
+                Alignment = ToolStripItemAlignment.Right,
+                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                Text = "Annuler OCR",
+                ToolTipText = "Annule les calculs OCR en attente",
+                Visible = false
+            };
+            btnOcrCancel.Click += (sender, e) => CancelOcrPrecache();
+
+            tStrip.Items.Add(btnOcrPrecache);
+            tStrip.Items.Add(btnOcrCancel);
+            scannedImageHelper.OcrBusyChanged += OcrBusyChangedHandler;
+        }
+
+        private void CancelOcrPrecache()
+        {
+            ocrCancelRequested = true;
+            scannedImageHelper.CancelBackgroundOcr();
+            UpdateOcrButtons();
+        }
+
+        private void OcrBusyChangedHandler(object sender, EventArgs e)
+        {
+            SafeInvokeAsync(UpdateOcrButtons);
+        }
+
+        private void UpdateOcrButtons()
+        {
+            if (btnOcrPrecache == null || btnOcrCancel == null)
+            {
+                return;
+            }
+            bool busy = ocrPrecacheRunning || scannedImageHelper.IsOcrBusy;
+            btnOcrCancel.Visible = busy;
+            btnOcrPrecache.Enabled = imageList.Images.Any() && !busy;
         }
 
         private void PageDown()
@@ -2547,7 +2640,7 @@ namespace NAPS2.WinForms
         {
             lock (next)
             {
-                var thumb = next.GetThumbnail();
+                using (var thumb = next.GetThumbnail())
                 return thumb == null || next.IsThumbnailDirty || thumb.Size != thumbnailList1.ThumbnailSize;
             }
         }
@@ -2654,7 +2747,7 @@ namespace NAPS2.WinForms
             {
                 if (SelectedIndices.Any())
                 {
-                    var box = MessageBox.Show("Écraser l'image sélectionnée", "Importation", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+                    var box = MessageBox.Show("ï¿½craser l'image sï¿½lectionnï¿½e", "Importation", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
                     if (box == DialogResult.Cancel)
                     {
                         return;

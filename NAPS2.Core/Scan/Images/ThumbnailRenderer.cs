@@ -66,11 +66,11 @@ namespace NAPS2.Scan.Images
             return RenderThumbnail(scannedImage, userConfigManager.Config.ThumbnailSize);
         }
 
-        public Task<Bitmap> RenderThumbnail(ScannedImage scannedImage, int size)
+        public async Task<Bitmap> RenderThumbnail(ScannedImage scannedImage, int size)
         {
             using (var snapshot = scannedImage.Preserve())
             {
-                return RenderThumbnail(snapshot, size);
+                return await RenderThumbnail(snapshot, size);
             }
         }
 

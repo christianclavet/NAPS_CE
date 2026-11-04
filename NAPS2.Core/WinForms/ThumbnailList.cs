@@ -53,6 +53,9 @@ namespace NAPS2.WinForms
             }
         }
 
+        // Private lock object: locking on the control itself can deadlock with Control.Invoke
+        private readonly object syncRoot = new object();
+
         private Bitmap placeholder;
 
         public ListViewGroupCollection GetGroups()
@@ -104,11 +107,10 @@ namespace NAPS2.WinForms
 
 
 
-        public async void AddedImages(List<ScannedImage> allImages, Color color, bool recover = false)
+        public void AddedImages(List<ScannedImage> allImages, Color color, bool recover = false)
         {
-            await System.Threading.Tasks.Task.Yield();
 
-            lock (this)
+            lock (syncRoot)
             {
                 if (Groups.Count < 1)
                 {
@@ -123,9 +125,9 @@ namespace NAPS2.WinForms
                     if (Items[i].Tag != allImages[i])
                     {
                         if (!recover)
-                            ilThumbnailList.Images[i] = GetThumbnail(allImages[i]);
+                            SetImageAt(i, GetThumbnail(allImages[i]));
                         else
-                            ilThumbnailList.Images[i] = RenderPlaceholder();
+                            SetImageAt(i, RenderPlaceholder());
 
                         Items[i].Tag = allImages[i];
                     }
@@ -135,9 +137,9 @@ namespace NAPS2.WinForms
                 for (int i = ilThumbnailList.Images.Count; i < allImages.Count; i++)
                 {
                     if (!recover)
-                        ilThumbnailList.Images.Add(GetThumbnail(allImages[i]));
+                        AddImage(GetThumbnail(allImages[i]));
                     else
-                        ilThumbnailList.Images.Add(RenderPlaceholder());
+                        AddImage(RenderPlaceholder());
 
                     Items.Add(ItemText, i).Tag = allImages[i];
                     var sep = allImages[i].Separator;
@@ -151,7 +153,10 @@ namespace NAPS2.WinForms
                     }
                     Items[i].ForeColor = color;
                     Groups[Groups.Count - 1].Items.Add(Items[i]);
-                    GroupRefresh(allImages);
+                    if (i == allImages.Count - 1)
+                    {
+                        GroupRefresh(allImages);
+                    }
                     
                 }
 
@@ -161,7 +166,7 @@ namespace NAPS2.WinForms
 
         public void DeletedImages(List<ScannedImage> allImages)
         {
-            lock (this)
+            lock (syncRoot)
             {
                 BeginUpdate();
                 if (allImages.Count == 0)
@@ -195,7 +200,7 @@ namespace NAPS2.WinForms
         
         public void UpdatedImages(List<ScannedImage> images, List<int> selection, Color color)
         {
-            lock (this)
+            lock (syncRoot)
             {
                 BeginUpdate();
                 int min = selection == null || !selection.Any() ? 0 : selection.Min();
@@ -204,7 +209,7 @@ namespace NAPS2.WinForms
                 for (int i = min; i < max; i++)
                 {
                     int imageIndex = Items[i].ImageIndex;
-                    ilThumbnailList.Images[imageIndex] = GetThumbnail(images[i]);
+                    SetImageAt(imageIndex, GetThumbnail(images[i]));
                     Items[i].Tag = images[i];
 
                     if (images[i].RecoveryIndexImage.isSeparator)
@@ -225,13 +230,13 @@ namespace NAPS2.WinForms
 
         public void UpdateDescriptions(List<ScannedImage> allImages, Color color)
         {
-            lock (this)
+            lock (syncRoot)
             {
                 BeginUpdate();
                 for (int i = 0; i < allImages.Count; i++)
                 {
                     int imageIndex = Items[i].ImageIndex;
-                    ilThumbnailList.Images[imageIndex] = GetThumbnail(allImages[i]);
+                    SetImageAt(imageIndex, GetThumbnail(allImages[i]));
                     Items[i].Tag = allImages[i];
 
                     if (allImages[i].Separator)
@@ -259,7 +264,6 @@ namespace NAPS2.WinForms
             if (InsertionMark.Index > -1)
             {
 
-                Pen pen = new Pen(ForeColor, 1);
 
                 var pos = InsertionMark.Index;
 
@@ -296,8 +300,10 @@ namespace NAPS2.WinForms
 
 
                 rec.Width = 4;
-                Brush br = new SolidBrush(ForeColor);
-                e.Graphics.FillRectangle(br, rec);
+                using (Brush br = new SolidBrush(ForeColor))
+                {
+                    e.Graphics.FillRectangle(br, rec);
+                }
 
                 //For debug uses
                 //e.Graphics.DrawRectangle(pen,Items[InsertionMark.Index].Bounds);
@@ -328,7 +334,7 @@ namespace NAPS2.WinForms
         //This will rebuild the groups and the document list for the export later.
         public List<Document> GroupRefresh(List<ScannedImage> images)
         {
-            lock (this)
+            lock (syncRoot)
             {
 
                 BeginUpdate();
@@ -378,14 +384,18 @@ namespace NAPS2.WinForms
 
         public void ReplaceThumbnail(int index, ScannedImage img)
         {
-            lock (this)
+            lock (syncRoot)
             {
                 BeginUpdate();
                 var thumb = GetThumbnail(img);
                 if (thumb.Size == ThumbnailSize)
                 {
-                    ilThumbnailList.Images[index] = thumb;
+                    SetImageAt(index, thumb);
                     Invalidate(Items[index].Bounds);
+                }
+                else
+                {
+                    ReleaseThumbnail(thumb);
                 }
                 EndUpdate();
             }
@@ -394,7 +404,7 @@ namespace NAPS2.WinForms
         public void RegenerateThumbnailList(List<ScannedImage> images, Color color, bool onlyText = false)
         {
             
-            lock (this) { 
+            lock (syncRoot) { 
                 
                 if (!onlyText)
                 {
@@ -411,6 +421,10 @@ namespace NAPS2.WinForms
                     }
 
                     ilThumbnailList.Images.AddRange(list.ToArray());
+                    foreach (var thumb in list)
+                    {
+                        ReleaseThumbnail(thumb);
+                    }
                     EndUpdate();
                 }
                 
@@ -435,9 +449,31 @@ namespace NAPS2.WinForms
 
         }
 
+        // The ImageList copies each bitmap it receives, so the caller keeps ownership and must release it.
+        // The shared placeholder is cached for reuse and must not be disposed here.
+        private void ReleaseThumbnail(Bitmap thumb)
+        {
+            if (thumb != null && !ReferenceEquals(thumb, placeholder))
+            {
+                thumb.Dispose();
+            }
+        }
+
+        private void SetImageAt(int index, Bitmap thumb)
+        {
+            ilThumbnailList.Images[index] = thumb;
+            ReleaseThumbnail(thumb);
+        }
+
+        private void AddImage(Bitmap thumb)
+        {
+            ilThumbnailList.Images.Add(thumb);
+            ReleaseThumbnail(thumb);
+        }
+
         private Bitmap GetThumbnail(ScannedImage img)
         {
-            lock (this)
+            lock (syncRoot)
             {
                 var thumb = img.GetThumbnail();
                 if (thumb == null)
@@ -454,7 +490,7 @@ namespace NAPS2.WinForms
 
         private Bitmap RenderPlaceholder()
         {
-            lock (this)
+            lock (syncRoot)
             {
                 if (placeholder?.Size == ThumbnailSize)
                 {
@@ -485,6 +521,7 @@ namespace NAPS2.WinForms
                     image.Height,
                     GraphicsUnit.Pixel,
                     attrs);
+                attrs.Dispose();
                 g.DrawImage(Icons.hourglass_grey, new Rectangle((bitmap.Width - 32) / 2, (bitmap.Height - 32) / 2, 32, 32));
             }
             image.Dispose();

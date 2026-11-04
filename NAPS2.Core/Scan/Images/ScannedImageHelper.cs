@@ -272,6 +272,19 @@ namespace NAPS2.Scan.Images
             }
         }
 
+        public void CancelBackgroundOcr()
+        {
+            ocrRequestQueue.CancelBackground();
+        }
+
+        public bool IsOcrBusy => ocrRequestQueue.IsBusy;
+
+        public event EventHandler OcrBusyChanged
+        {
+            add => ocrRequestQueue.OcrBusyChanged += value;
+            remove => ocrRequestQueue.OcrBusyChanged -= value;
+        }
+
         private void AddTransformAndUpdateThumbnail(ScannedImage image, ref Bitmap bitmap, Transform transform)
         {
             image.AddTransform(transform);

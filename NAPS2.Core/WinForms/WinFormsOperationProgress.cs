@@ -27,12 +27,19 @@ namespace NAPS2.WinForms
 
         public void Attach(IOperation op)
         {
-            lock (this)
+            lock (activeOperations)
             {
                 if (!activeOperations.Contains(op))
                 {
                     activeOperations.Add(op);
-                    op.Finished += (sender, args) => activeOperations.Remove(op);
+                    // Finished may be raised on a worker thread, so removal must also take the lock
+                    op.Finished += (sender, args) =>
+                    {
+                        lock (activeOperations)
+                        {
+                            activeOperations.Remove(op);
+                        }
+                    };
                     if (op.IsFinished) activeOperations.Remove(op);
                 }
             }

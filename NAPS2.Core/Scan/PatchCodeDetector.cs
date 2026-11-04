@@ -26,11 +26,14 @@ namespace NAPS2.Scan
                 return DataBarcode;
             }
 
+            Bitmap clone = null;
+
             // Convertir en 32 bits ARGB si nécessaire
             if (bitmap.PixelFormat != PixelFormat.Format32bppArgb)
             {
                 // Cloner l'image dans le format requis
-                bitmap = bitmap.Clone(new Rectangle(0, 0, bitmap.Width, bitmap.Height), PixelFormat.Format32bppArgb);
+                clone = bitmap.Clone(new Rectangle(0, 0, bitmap.Width, bitmap.Height), PixelFormat.Format32bppArgb);
+                bitmap = clone;
             }
 
             var reader  = new BarcodeReader
@@ -39,14 +42,26 @@ namespace NAPS2.Scan
                     Options = new ZXing.Common.DecodingOptions { TryHarder = true }
             };
 
-            var barcodeResult = reader.DecodeMultiple(bitmap);
-            if (barcodeResult != null) //Something is detected
+            Result[] barcodeResult;
+            try
+            {
+                barcodeResult = reader.DecodeMultiple(bitmap);
+            }
+            finally
+            {
+                // Libère le clone créé localement (le bitmap d'origine appartient à l'appelant)
+                if (clone != null)
+                {
+                    clone.Dispose();
+                }
+            }
+            if (barcodeResult != null && barcodeResult.Length > 0) //Something is detected
             {
                 DataBarcode = barcodeResult[0].Text;
-                for (int i = 0; i < barcodeResult.Count(); i++) 
+                for (int i = 0; i < barcodeResult.Length; i++) 
                 {
 
-                    if (barcodeResult.Count() > 1 && i>0)
+                    if (i > 0)
                     {
                         DataBarcode += "^" + barcodeResult[i].Text;
                     }
@@ -63,6 +78,12 @@ namespace NAPS2.Scan
 
         public static PatchCode Detect(Bitmap bitmap)
         {
+            if (bitmap == null)
+            {
+                DataBarcode = "";
+                return PatchCode.None;
+            }
+
             IBarcodeReader reader = new BarcodeReader();
             var barcodeResult = reader.Decode(bitmap);
             if (barcodeResult != null) //Something is detected
