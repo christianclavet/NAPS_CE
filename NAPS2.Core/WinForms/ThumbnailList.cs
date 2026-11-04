@@ -414,7 +414,8 @@ namespace NAPS2.WinForms
                         ilThumbnailList.Images.Clear();
                     }
 
-                    var list = new List<Image>();
+                    // Typed as Bitmap so each entry can be released after the ImageList copies it
+                    var list = new List<Bitmap>();
                     foreach (var image in images)
                     {
                         list.Add(GetThumbnail(image));
