@@ -1,4 +1,4 @@
-#region Usings
+﻿#region Usings
 
 using System;
 using System.Collections;
@@ -41,7 +41,6 @@ using NAPS2.ImportExport.Images;
 using Org.BouncyCastle.Tsp;
 using Castle.Core.Internal;
 using Org.BouncyCastle.Asn1.X509;
-using Ghostscript.NET;
 using static System.Net.Mime.MediaTypeNames;
 
 #endregion
@@ -2214,6 +2213,11 @@ namespace NAPS2.WinForms
         private void tsPdfSettings2_Click(object sender, EventArgs e)
         {
             var form = FormFactory.Create<FPdfSettings>().ShowDialog();
+        }
+
+        private void tsVectorPdfDpi_Click(object sender, EventArgs e)
+        {
+            FormFactory.Create<FVectorPdfDpi>().ShowDialog();
         }
 
         private void tsEmailSettings_Click(object sender, EventArgs e)

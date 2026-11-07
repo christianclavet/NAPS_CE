@@ -91,6 +91,8 @@ namespace NAPS2.WinForms
             this.tsOCR = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator14 = new System.Windows.Forms.ToolStripSeparator();
             this.tsLanguage = new System.Windows.Forms.ToolStripMenuItem();
+            this.tsVectorPdfDpi = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator23 = new System.Windows.Forms.ToolStripSeparator();
             this.toolStripSeparator17 = new System.Windows.Forms.ToolStripSeparator();
             this.tsAbout = new System.Windows.Forms.ToolStripMenuItem();
             this.quitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -671,6 +673,8 @@ namespace NAPS2.WinForms
             this.toolStripSeparator8,
             this.tsOCR,
             this.toolStripSeparator14,
+            this.tsVectorPdfDpi,
+            this.toolStripSeparator23,
             this.tsLanguage});
             this.tsTools.Image = global::NAPS2.Icons.toolbox;
             resources.ApplyResources(this.tsTools, "tsTools");
@@ -692,6 +696,17 @@ namespace NAPS2.WinForms
             // 
             this.toolStripSeparator14.Name = "toolStripSeparator14";
             resources.ApplyResources(this.toolStripSeparator14, "toolStripSeparator14");
+            // 
+            // tsVectorPdfDpi
+            // 
+            this.tsVectorPdfDpi.Name = "tsVectorPdfDpi";
+            resources.ApplyResources(this.tsVectorPdfDpi, "tsVectorPdfDpi");
+            this.tsVectorPdfDpi.Click += new System.EventHandler(this.tsVectorPdfDpi_Click);
+            // 
+            // toolStripSeparator23
+            // 
+            this.toolStripSeparator23.Name = "toolStripSeparator23";
+            resources.ApplyResources(this.toolStripSeparator23, "toolStripSeparator23");
             // 
             // tsLanguage
             // 
@@ -1247,6 +1262,8 @@ namespace NAPS2.WinForms
         private System.Windows.Forms.ToolStripMenuItem tsPdfSettings2;
         private System.Windows.Forms.ToolStripMenuItem tsTools;
         private System.Windows.Forms.ToolStripMenuItem tsLanguage;
+        private System.Windows.Forms.ToolStripMenuItem tsVectorPdfDpi;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator23;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator8;
         private System.Windows.Forms.ToolStripMenuItem tsOCR;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator14;

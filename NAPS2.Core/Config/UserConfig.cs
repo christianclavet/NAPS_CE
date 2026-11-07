@@ -16,6 +16,12 @@ namespace NAPS2.Config
     {
         public const int CURRENT_VERSION = 2;
 
+        public const int DEFAULT_VECTOR_PDF_DPI = 300;
+
+        public const int MIN_VECTOR_PDF_DPI = 72;
+
+        public const int MAX_VECTOR_PDF_DPI = 1200;
+
         public int Version { get; set; }
 
         public string Culture { get; set; }
@@ -73,6 +79,8 @@ namespace NAPS2.Config
         public string project { get; set; }
 
         public string LastPath {  get; set; }
+
+        public int VectorPdfDpi { get; set; } = DEFAULT_VECTOR_PDF_DPI;
 
     }
 }
