@@ -223,32 +223,17 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
-    <None Include="Setup\Build-Test.ps1" />
-    <None Include="Setup\Test-Lang.ps1" />
-    <None Include="Setup\LanguageComponents.tt">
-      <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>LanguageComponents.wxs</LastGenOutput>
-    </None>
     <None Include="Setup\license.rtf" />
-    <None Include="Setup\naps2.ps1" />
     <None Include="Setup\ps.bat" />
-    <None Include="Setup\Publish-NAPS2.ps1" />
     <None Include="Setup\setup.languagefiles.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>setup.languagefiles.iss</LastGenOutput>
     </None>
-    <None Include="Setup\Update-Resources.ps1" />
-    <None Include="Setup\Update-Templates.ps1" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="appsettings.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <SubType>Designer</SubType>
-    </Content>
-    <Content Include="Setup\LanguageComponents.wxs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>LanguageComponents.tt</DependentUpon>
     </Content>
     <ContentWithTargetPath Include="Setup\lib\dbg\64\NAPS2.WIA.dll">
       <CopyToOutputDirectory Condition=" '$(Configuration)' == 'Debug' Or '$(Configuration)' == 'DebugLang' ">PreserveNewest</CopyToOutputDirectory>
