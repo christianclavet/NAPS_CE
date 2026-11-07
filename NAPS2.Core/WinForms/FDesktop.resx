@@ -1611,6 +1611,18 @@
   <data name="toolStripSeparator19.Size" type="System.Drawing.Size, System.Drawing">
     <value>322, 6</value>
   </data>
+  <data name="tsMask.ImageScaling" type="System.Windows.Forms.ToolStripItemImageScaling, System.Windows.Forms">
+    <value>None</value>
+  </data>
+  <data name="tsMask.Size" type="System.Drawing.Size, System.Drawing">
+    <value>325, 42</value>
+  </data>
+  <data name="tsMask.Text" xml:space="preserve">
+    <value>&amp;Mask</value>
+  </data>
+  <data name="tsMask.ToolTipText" xml:space="preserve">
+    <value>Mask the selected image(s)</value>
+  </data>
   <data name="tsCrop.ImageScaling" type="System.Windows.Forms.ToolStripItemImageScaling, System.Windows.Forms">
     <value>None</value>
   </data>

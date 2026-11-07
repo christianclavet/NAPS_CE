@@ -11,6 +11,7 @@ namespace NAPS2.Scan.Images.Transforms
 {
     [XmlInclude(typeof(RotationTransform))]
     [XmlInclude(typeof(CropTransform))]
+    [XmlInclude(typeof(MaskTransform))]
     [XmlInclude(typeof(BrightnessTransform))]
     [XmlInclude(typeof(ContrastTransform))]
     [XmlInclude(typeof(TrueContrastTransform))]

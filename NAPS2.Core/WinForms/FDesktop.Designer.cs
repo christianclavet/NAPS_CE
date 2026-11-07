@@ -124,6 +124,7 @@ namespace NAPS2.WinForms
             this.tsBarCodeCheck = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator19 = new System.Windows.Forms.ToolStripSeparator();
             this.tsCrop = new System.Windows.Forms.ToolStripMenuItem();
+            this.tsMask = new System.Windows.Forms.ToolStripMenuItem();
             this.tsBrightnessContrast = new System.Windows.Forms.ToolStripMenuItem();
             this.tsHueSaturation = new System.Windows.Forms.ToolStripMenuItem();
             this.tsBlackWhite = new System.Windows.Forms.ToolStripMenuItem();
@@ -896,6 +897,7 @@ namespace NAPS2.WinForms
             this.tsBarCodeCheck,
             this.toolStripSeparator19,
             this.tsCrop,
+            this.tsMask,
             this.tsBrightnessContrast,
             this.tsHueSaturation,
             this.tsBlackWhite,
@@ -944,6 +946,13 @@ namespace NAPS2.WinForms
             resources.ApplyResources(this.tsCrop, "tsCrop");
             this.tsCrop.Name = "tsCrop";
             this.tsCrop.Click += new System.EventHandler(this.tsCrop_Click);
+            // 
+            // tsMask
+            // 
+            this.tsMask.Image = global::NAPS2.Icons.color_wheel;
+            resources.ApplyResources(this.tsMask, "tsMask");
+            this.tsMask.Name = "tsMask";
+            this.tsMask.Click += new System.EventHandler(this.tsMask_Click);
             // 
             // tsBrightnessContrast
             // 
@@ -1204,6 +1213,7 @@ namespace NAPS2.WinForms
         private System.Windows.Forms.ToolStripMenuItem tsView;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator6;
         private System.Windows.Forms.ToolStripMenuItem tsCrop;
+        private System.Windows.Forms.ToolStripMenuItem tsMask;
         private System.Windows.Forms.ToolStripMenuItem tsBrightnessContrast;
         private System.Windows.Forms.ToolStripMenuItem tsHueSaturation;
         private System.Windows.Forms.ToolStripMenuItem tsBlackWhite;

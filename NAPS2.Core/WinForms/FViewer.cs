@@ -38,6 +38,7 @@ namespace NAPS2.WinForms
         private ToolStripMenuItem tsFlip;
         private ToolStripMenuItem tsCustomRotation;
         private ToolStripButton tsCrop;
+        private ToolStripButton tsMask;
         private ToolStripButton tsBrightnessContrast;
         private ToolStripButton tsDelete;
         private TiffViewerCtl tiffViewer1;
@@ -184,6 +185,7 @@ namespace NAPS2.WinForms
             this.tsDeskew = new System.Windows.Forms.ToolStripMenuItem();
             this.tsCustomRotation = new System.Windows.Forms.ToolStripMenuItem();
             this.tsCrop = new System.Windows.Forms.ToolStripButton();
+            this.tsMask = new System.Windows.Forms.ToolStripButton();
             this.tsBrightnessContrast = new System.Windows.Forms.ToolStripButton();
             this.tsHueSaturation = new System.Windows.Forms.ToolStripButton();
             this.tsBlackWhite = new System.Windows.Forms.ToolStripButton();
@@ -259,6 +261,7 @@ namespace NAPS2.WinForms
             this.toolStripSeparator1,
             this.tsdRotate,
             this.tsCrop,
+            this.tsMask,
             this.tsBrightnessContrast,
             this.tsHueSaturation,
             this.tsBlackWhite,
@@ -354,6 +357,13 @@ namespace NAPS2.WinForms
             resources.ApplyResources(this.tsCrop, "tsCrop");
             this.tsCrop.Name = "tsCrop";
             this.tsCrop.Click += new System.EventHandler(this.tsCrop_Click);
+            // 
+            // tsMask
+            // 
+            this.tsMask.Image = global::NAPS2.Icons.color_wheel;
+            resources.ApplyResources(this.tsMask, "tsMask");
+            this.tsMask.Name = "tsMask";
+            this.tsMask.Click += new System.EventHandler(this.tsMask_Click);
             // 
             // tsBrightnessContrast
             // 
@@ -528,6 +538,14 @@ namespace NAPS2.WinForms
             await UpdateImage();
         }
 
+        private async void tsMask_Click(object sender, EventArgs e)
+        {
+            var form = FormFactory.Create<FMask>();
+            form.Image = ImageList.Images[ImageIndex];
+            form.ShowDialog();
+            await UpdateImage();
+        }
+
         private async void tsCrop_Click(object sender, EventArgs e)
         {
             var form = FormFactory.Create<FCrop>();
@@ -687,10 +705,12 @@ namespace NAPS2.WinForms
             var ks = userConfigManager.Config.KeyboardShortcuts ?? appConfigManager.Config.KeyboardShortcuts ?? new KeyboardShortcuts();
 
             ksm.Assign(ks.Delete, tsDelete);
+            ksm.Assign("M", tsMask);
             ksm.Assign(ks.ImageBlackWhite, tsBlackWhite);
             ksm.Assign(ks.ImageBrightness, tsBrightnessContrast);
             ksm.Assign(ks.ImageContrast, tsBrightnessContrast);
             ksm.Assign(ks.ImageCrop, tsCrop);
+            ksm.Assign(ks.ImageMask, tsMask);
             ksm.Assign(ks.ImageHue, tsHueSaturation);
             ksm.Assign(ks.ImageSaturation, tsHueSaturation);
             ksm.Assign(ks.ImageSharpen, tsSharpen);

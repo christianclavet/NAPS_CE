@@ -330,6 +330,18 @@
   <data name="tsdRotate.TextImageRelation" type="System.Windows.Forms.TextImageRelation, System.Windows.Forms">
     <value>ImageAboveText</value>
   </data>
+  <data name="tsMask.ImageTransparentColor" type="System.Drawing.Color, System.Drawing">
+    <value>Magenta</value>
+  </data>
+  <data name="tsMask.Size" type="System.Drawing.Size, System.Drawing">
+    <value>37, 51</value>
+  </data>
+  <data name="tsMask.Text" xml:space="preserve">
+    <value>Mask</value>
+  </data>
+  <data name="tsMask.TextImageRelation" type="System.Windows.Forms.TextImageRelation, System.Windows.Forms">
+    <value>ImageAboveText</value>
+  </data>
   <data name="tsCrop.ImageTransparentColor" type="System.Drawing.Color, System.Drawing">
     <value>Magenta</value>
   </data>

@@ -1113,7 +1113,7 @@ namespace NAPS2.WinForms
             tsSavePDFSelected.Text = tsSaveImagesSelected.Text = tsEmailPDFSelected.Text = tsReverseSelected.Text =
                 string.Format(MiscResources.SelectedCount, SelectedIndices.Count());
             tsSavePDFSelected.Enabled = tsSaveImagesSelected.Enabled = tsEmailPDFSelected.Enabled = tsReverseSelected.Enabled = 
-                tsBlackWhite.Enabled = tsBrightnessContrast.Enabled = tsCrop.Enabled = tsHueSaturation.Enabled = 
+                tsBlackWhite.Enabled = tsBrightnessContrast.Enabled = tsCrop.Enabled = tsMask.Enabled = tsHueSaturation.Enabled = 
                 printToolStripMenuItem.Enabled = tsReset.Enabled = tsSharpen.Enabled = tsView.Enabled = tsInsert.Enabled =
                 tsiDocumentAdd.Enabled = tsiDocumentRemove.Enabled = TS_BarcodeInfo.Enabled =
                 SelectedIndices.Any();
@@ -1514,6 +1514,7 @@ namespace NAPS2.WinForms
             ksm.Assign("Ctrl+Numpad3", tsRotateRight);
             ksm.Assign("Ctrl+Down", tsCustomRotation);
             ksm.Assign("C", tsCrop);
+            ksm.Assign("M", tsMask);
             ksm.Assign("B", tsBrightnessContrast);
             ksm.Assign("H", tsHueSaturation);
             ksm.Assign("D", tsDeskew);
@@ -1539,6 +1540,7 @@ namespace NAPS2.WinForms
             ksm.Assign(ks.ImageBrightness, tsBrightnessContrast);
             ksm.Assign(ks.ImageContrast, tsBrightnessContrast);
             ksm.Assign(ks.ImageCrop, tsCrop);
+            ksm.Assign(ks.ImageMask, tsMask);
             ksm.Assign(ks.ImageHue, tsHueSaturation);
             ksm.Assign(ks.ImageSaturation, tsHueSaturation);
             ksm.Assign(ks.ImageSharpen, tsSharpen);
@@ -2232,6 +2234,21 @@ namespace NAPS2.WinForms
         private void tsView_Click(object sender, EventArgs e)
         {
             PreviewImage();
+        }
+
+        private void tsMask_Click(object sender, EventArgs e)
+        {
+            if (SelectedIndices.Any())
+            {
+                var form = FormFactory.Create<FMask>();
+                BackgroundForm.UseImmersiveDarkMode(form.Handle, darkMode);
+
+                form.Image = SelectedImages.First();
+                form.MaximizeBox = true;
+                form.SelectedImages = SelectedImages.ToList();
+                form.ShowDialog();
+                UpdateToolbar();
+            }
         }
 
         private void tsCrop_Click(object sender, EventArgs e)

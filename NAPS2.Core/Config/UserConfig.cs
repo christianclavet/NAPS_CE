@@ -82,5 +82,8 @@ namespace NAPS2.Config
 
         public int VectorPdfDpi { get; set; } = DEFAULT_VECTOR_PDF_DPI;
 
+        // Persisted fill color of the mask tool (ARGB), white by default
+        public int MaskColorArgb { get; set; } = System.Drawing.Color.White.ToArgb();
+
     }
 }

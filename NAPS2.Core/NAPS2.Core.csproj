@@ -451,6 +451,7 @@
     <Compile Include="Scan\Images\Transforms\BrightnessTransform.cs" />
     <Compile Include="Scan\Images\Transforms\ContrastTransform.cs" />
     <Compile Include="Scan\Images\Transforms\CropTransform.cs" />
+    <Compile Include="Scan\Images\Transforms\MaskTransform.cs" />
     <Compile Include="Scan\Images\Transforms\RotationTransform.cs" />
     <Compile Include="Scan\Images\Transforms\Transform.cs" />
     <Compile Include="Scan\IScanDriverFactory.cs" />
@@ -602,6 +603,12 @@
     </Compile>
     <Compile Include="WinForms\FCrop.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="WinForms\FMask.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="WinForms\FMask.Designer.cs">
+      <DependentUpon>FMask.cs</DependentUpon>
     </Compile>
     <Compile Include="WinForms\FCrop.Designer.cs">
       <DependentUpon>FCrop.cs</DependentUpon>
@@ -2688,6 +2695,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="WinForms\FCrop.pt-PT.resx" Condition="'$(Configuration)' != 'Debug'">
       <DependentUpon>FCrop.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="WinForms\FMask.resx">
+      <DependentUpon>FMask.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="WinForms\FCrop.resx">
       <DependentUpon>FCrop.cs</DependentUpon>
