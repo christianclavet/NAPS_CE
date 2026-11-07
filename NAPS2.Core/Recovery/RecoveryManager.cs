@@ -37,6 +37,79 @@ namespace NAPS2.Recovery
             folderToRecoverFrom = info;
         }
 
+        public const string WORK_FOLDER_PREFIX = "Work_folder_";
+
+        /// <summary>
+        /// Finds work folders left behind by NAPS2 instances that stopped without cleaning up (e.g. power loss).
+        /// Folders still in use by a running instance are ignored. Empty folders are deleted.
+        /// </summary>
+        /// <returns>The folders with unsaved pages and their page count, most recently written first.</returns>
+        public static List<Tuple<DirectoryInfo, int>> FindUnfinishedWorkFolders()
+        {
+            var result = new List<Tuple<DirectoryInfo, int>>();
+            foreach (var folder in new DirectoryInfo(Paths.Projects).EnumerateDirectories(WORK_FOLDER_PREFIX + "*"))
+            {
+                // A work folder always has a lock file; without one it was not created by NAPS2's recovery system
+                if (!File.Exists(Path.Combine(folder.FullName, RecoveryImage.LOCK_FILE_NAME)) || IsLocked(folder))
+                {
+                    continue;
+                }
+                try
+                {
+                    int imageCount = new RecoveryIndexManager(folder).Index.Images.Count;
+                    if (imageCount == 0)
+                    {
+                        DeleteUnfinishedWorkFolder(folder);
+                    }
+                    else
+                    {
+                        result.Add(Tuple.Create(folder, imageCount));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.ErrorException("Error reading unfinished work folder.", ex);
+                }
+            }
+            return result.OrderByDescending(x => x.Item1.LastWriteTime).ToList();
+        }
+
+        /// <summary>
+        /// Deletes an unfinished work folder, unless a running NAPS2 instance still holds its lock.
+        /// </summary>
+        public static void DeleteUnfinishedWorkFolder(DirectoryInfo folder)
+        {
+            try
+            {
+                if (folder.Exists && !IsLocked(folder))
+                {
+                    folder.Delete(true);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorException("Error deleting unfinished work folder.", ex);
+            }
+        }
+
+        private static bool IsLocked(DirectoryInfo folder)
+        {
+            try
+            {
+                // RecoveryImage holds the lock file open with FileShare.None while the instance runs
+                using (new FileStream(Path.Combine(folder.FullName, RecoveryImage.LOCK_FILE_NAME), FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                }
+                return false;
+            }
+            catch (Exception)
+            {
+                // Treat anything unexpected as "in use" so that nothing is deleted by mistake
+                return true;
+            }
+        }
+
+
         public void Save()
         {  // Save the project data from the data in the container.
             
@@ -45,11 +118,12 @@ namespace NAPS2.Recovery
             recoveryIndexManager.Save();
         }
 
-        public void RecoverScannedImages(Action<ScannedImage> imageCallback)
+        public void RecoverScannedImages(Action<ScannedImage> imageCallback, bool deleteSourceAfterRecovery = false)
         {
 
             var op = new RecoveryOperation(formFactory, thumbnailRenderer);
             op.SetFolder(folderToRecoverFrom);
+            op.DeleteSourceAfterRecovery = deleteSourceAfterRecovery;
             op.SetContainer(imageSettingsContainer);
 
             if (op.Start(imageCallback))
@@ -71,6 +145,11 @@ namespace NAPS2.Recovery
             public int imageCount;
             private DateTime scannedDateTime;
             private bool cleanup;
+
+            /// <summary>
+            /// When true, the recovered folder is deleted after all of its pages were copied into the current work folder.
+            /// </summary>
+            public bool DeleteSourceAfterRecovery { get; set; }
 
             public void SetFolder(DirectoryInfo info)
             { 
@@ -134,6 +213,11 @@ namespace NAPS2.Recovery
                                     ReleaseFolderLock();
                                 GC.Collect();
                                 //DeleteFolder();
+                                // Only remove the old folder once every page was copied (a cancel keeps it)
+                                if (DeleteSourceAfterRecovery && !CancelToken.IsCancellationRequested)
+                                {
+                                    DeleteFolder();
+                                }
                                 return true;
                             }
                             return false;

@@ -430,8 +430,7 @@ namespace NAPS2.WinForms
 
 
             // Allow scanned images to be recovered in case of an unexpected close
-            //DirectoryInfo di = new DirectoryInfo(Paths.Projects);
-            //recoveryManager.RecoverScannedImages(ReceiveScannedImage());
+            CheckUnfinishedWorkFolders();
 
             new Thread(RenderThumbnails).Start();
 
@@ -572,6 +571,8 @@ namespace NAPS2.WinForms
             Pipes.KillServer();
             //Remove the work folder when closing the application
             imageList.Delete(Enumerable.Range(0, imageList.Images.Count));
+            RecoveryImage.DeleteWorkFolder();
+
             closed = true;
             renderThumbnailsWaitHandle.Set();
             tiffViewerCtl1.Dispose();
@@ -3113,6 +3114,40 @@ namespace NAPS2.WinForms
                     thumbnailList1.RegenerateThumbnailList(imageList.Images, Color.Black, true);
                     thumbnailList1.GroupRefresh(imageList.Images);
                 }));*/
+        }
+
+        /// <summary>
+        /// Looks for work folders left by a previous session that did not close properly and lets the user decide what to do.
+        /// </summary>
+        private void CheckUnfinishedWorkFolders()
+        {
+            var folders = RecoveryManager.FindUnfinishedWorkFolders();
+            if (folders.Count == 0)
+            {
+                return;
+            }
+
+            var latest = folders[0];
+            var result = MessageBox.Show(
+                string.Format(MiscResources.UnfinishedWorkMessage, folders.Count, latest.Item2),
+                MiscResources.UnfinishedWorkTitle,
+                MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button3);
+
+            if (result == DialogResult.Yes)
+            {
+                // Copy the pages of the most recent folder into this session's work folder, then remove the old folder
+                recoveryManager.SetFolder(latest.Item1);
+                recover = true;
+                recoveryManager.RecoverScannedImages(ReceiveRecovery(), true);
+                UpdateToolbar();
+            }
+            else if (result == DialogResult.No)
+            {
+                foreach (var folder in folders)
+                {
+                    RecoveryManager.DeleteUnfinishedWorkFolder(folder.Item1);
+                }
+            }
         }
 
         private void closeWorkspace(bool clear=true)

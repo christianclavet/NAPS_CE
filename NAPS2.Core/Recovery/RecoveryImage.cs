@@ -81,6 +81,41 @@ namespace NAPS2.Recovery
             return DeferredSave.Defer();
         }
 
+        /// <summary>
+        /// Deletes the work folder owned by this process, discarding any pages that were not saved as a project.
+        /// Folders owned by other processes or saved projects are never touched.
+        /// </summary>
+        public static void DeleteWorkFolder()
+        {
+            // Only delete a folder this process owns (created and locked by this process)
+            if (DisableRecoveryCleanup || _recoveryIndexManager == null)
+            {
+                return;
+            }
+            try
+            {
+                // The lock must be released before the folder can be deleted
+                if (_recoveryLock != null)
+                {
+                    _recoveryLock.Dispose();
+                    _recoveryLock = null;
+                }
+                if (_recoveryFolder != null && _recoveryFolder.Exists)
+                {
+                    _recoveryFolder.Delete(true);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorException("Error deleting work folder.", ex);
+            }
+            finally
+            {
+                _recoveryFolder = null;
+            }
+        }
+
+
         public static RecoveryImage CreateNew(ImageFormat fileFormat, ScanBitDepth bitDepth, bool highQuality, List<Transform> transformList)
         {
             return new RecoveryImage(fileFormat, bitDepth, highQuality, transformList);

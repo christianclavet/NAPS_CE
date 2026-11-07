@@ -270,6 +270,17 @@
   <data name="UnsavedChanges" xml:space="preserve">
     <value>Unsaved Changes</value>
   </data>
+  <data name="UnfinishedWorkTitle" xml:space="preserve">
+    <value>Unfinished Work Found</value>
+  </data>
+  <data name="UnfinishedWorkMessage" xml:space="preserve">
+    <value>NAPS2 found {0} unfinished work folder(s), probably left by a crash or power loss. The most recent one contains {1} page(s).
+
+Yes: recover the most recent work.
+No: delete all unfinished work folders.
+Cancel: decide later.</value>
+  </data>
+
   <data name="ActiveOperations" xml:space="preserve">
     <value>Operation in Progress</value>
   </data>

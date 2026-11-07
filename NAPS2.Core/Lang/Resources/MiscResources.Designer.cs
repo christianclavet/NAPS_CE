@@ -1258,6 +1258,25 @@ namespace NAPS2.Lang.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Unfinished Work Found.
+        /// </summary>
+        internal static string UnfinishedWorkTitle {
+            get {
+                return ResourceManager.GetString("UnfinishedWorkTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to the unfinished work message.
+        /// </summary>
+        internal static string UnfinishedWorkMessage {
+            get {
+                return ResourceManager.GetString("UnfinishedWorkMessage", resourceCulture);
+            }
+        }
+        
+
+        /// <summary>
         ///   Recherche une chaîne localisée semblable à Do you want to back-up the current batch?.
         /// </summary>
         internal static string UnsavedChangesAction {
