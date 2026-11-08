@@ -9,7 +9,6 @@ AppVerName=NAPS2 - CriCri edition {#AppVersion}
 AppPublisher=Ben Olden-Cooligan | Christian Clavet
 AppPublisherURL=http://www.sourceforge.net/projects/naps2
 AppSupportURL=http://www.sourceforge.net/projects/naps2
-AppUpdatesURL=http://www.sourceforge.net/projects/naps2
 DefaultDirName={pf}\NAPS2 CriCri Edition
 DefaultGroupName=NAPS2 CriCri Edition
 OutputDir=../publish/{#AppVersion}
@@ -72,7 +71,6 @@ Source: "..\bin\InstallerEXE\pdfium_x64.dll"; DestDir: "{app}\lib"; Flags: ignor
 Source: "..\bin\InstallerEXE\NAPS2.DI.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\CommandLine.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\ICSharpCode.SharpZipLib.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\MimeKit.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\Newtonsoft.Json.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\Ninject.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\NLog.dll"; DestDir: "{app}\lib"; Flags: ignoreversion

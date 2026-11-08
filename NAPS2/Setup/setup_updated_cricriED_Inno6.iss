@@ -9,7 +9,6 @@ AppVerName=NAPS2 - CriCri edition {#AppVersion}
 AppPublisher=Ben Olden-Cooligan | Christian Clavet
 AppPublisherURL=http://www.sourceforge.net/projects/naps2
 AppSupportURL=http://www.sourceforge.net/projects/naps2
-AppUpdatesURL=http://www.sourceforge.net/projects/naps2
 DefaultDirName={pf}\NAPS2 CriCri Edition
 DefaultGroupName=NAPS2 CriCri Edition
 OutputDir=../publish/{#AppVersion}

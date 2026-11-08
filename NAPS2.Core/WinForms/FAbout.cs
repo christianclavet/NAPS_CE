@@ -8,24 +8,14 @@ using System.Windows.Forms;
 using NAPS2.Config;
 using NAPS2.Lang.Resources;
 using NAPS2.Logging;
-using NAPS2.Update;
 using NAPS2.Util;
 
 namespace NAPS2.WinForms
 {
     partial class FAbout : FormBase
     {
-        private readonly IUserConfigManager userConfigManager;
-        private readonly UpdateChecker updateChecker;
-
-        private bool hasCheckedForUpdates;
-        private UpdateInfo update;
-
-        public FAbout(AppConfigManager appConfigManager, IUserConfigManager userConfigManager, UpdateChecker updateChecker)
+        public FAbout(AppConfigManager appConfigManager)
         {
-            this.userConfigManager = userConfigManager;
-            this.updateChecker = updateChecker;
-
             RestoreFormState = false;
             InitializeComponent();
             labelProductName.Text = AssemblyProduct;
@@ -49,91 +39,6 @@ namespace NAPS2.WinForms
                 .Bind(logoPictureBox)
                     .TopTo(() => Height / 2)
                 .Activate();
-
-#if INSTALLER_MSI
-            ConditionalControls.Hide(cbCheckForUpdates, 15);
-            ConditionalControls.Hide(lblUpdateStatus, 5);
-#else
-            cbCheckForUpdates.Checked = userConfigManager.Config.CheckForUpdates;
-            UpdateControls();
-            DoUpdateCheck();
-#endif
-        }
-
-        private void DoUpdateCheck()
-        {
-            if (cbCheckForUpdates.Checked)
-            {
-                updateChecker.CheckForUpdates().ContinueWith(task =>
-                {
-                    if (task.IsFaulted)
-                    {
-                        Log.ErrorException("Error checking for updates", task.Exception);
-                    }
-                    else
-                    {
-                        userConfigManager.Config.LastUpdateCheckDate = DateTime.Now;
-                        userConfigManager.Save();
-                    }
-                    update = task.Result;
-                    hasCheckedForUpdates = true;
-                    SafeInvoke(UpdateControls);
-                });
-            }
-        }
-
-        private void UpdateControls()
-        {
-            const int margin = 5;
-            if (cbCheckForUpdates.Checked)
-            {
-                if (lblUpdateStatus.Visible == false && linkInstall.Visible == false)
-                {
-                    ConditionalControls.Show(lblUpdateStatus, margin);
-                }
-                if (hasCheckedForUpdates)
-                {
-                    if (update == null)
-                    {
-                        lblUpdateStatus.Text = MiscResources.NoUpdates;
-                        lblUpdateStatus.Visible = true;
-                        linkInstall.Visible = false;
-                    }
-                    else
-                    {
-                        linkInstall.Text = string.Format(MiscResources.Install, update.Name);
-                        lblUpdateStatus.Visible = false;
-                        linkInstall.Visible = true;
-                    }
-                }
-                else
-                {
-                    lblUpdateStatus.Text = MiscResources.CheckingForUpdates;
-                    lblUpdateStatus.Visible = true;
-                    linkInstall.Visible = false;
-                }
-            }
-            else
-            {
-                ConditionalControls.Hide(lblUpdateStatus, margin);
-                ConditionalControls.Hide(linkInstall, margin);
-            }
-        }
-
-        private void cbCheckForUpdates_CheckedChanged(object sender, EventArgs e)
-        {
-            userConfigManager.Config.CheckForUpdates = cbCheckForUpdates.Checked;
-            userConfigManager.Save();
-            UpdateControls();
-            DoUpdateCheck();
-        }
-
-        private void linkInstall_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
-        {
-            if (update != null)
-            {
-                updateChecker.StartUpdate(update);
-            }
         }
 
 #region Assembly Attribute Accessors

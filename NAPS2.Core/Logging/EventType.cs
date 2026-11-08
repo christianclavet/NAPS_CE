@@ -14,7 +14,6 @@ namespace NAPS2.Logging
         Save = SavePdf | SaveImages,
         Email = 1 << 3,
         Print = 1 << 4,
-        Update = 1 << 5,
-        All = Scan | Save | Email | Print | Update
+        All = Scan | Save | Email | Print
     }
 }

@@ -242,9 +242,6 @@
     <Compile Include="Scan\Wia\WiaConfiguration.cs" />
     <Compile Include="Scan\Wia\WiaScanErrors.cs" />
     <Compile Include="Scan\Wia\WiaScanOperation.cs" />
-    <Compile Include="Update\UpdateOperation.cs" />
-    <Compile Include="Update\UpdateInfo.cs" />
-    <Compile Include="Update\UpdateChecker.cs" />
     <Compile Include="Util\DebugTimer.cs" />
     <Compile Include="Util\DefaultInvoker.cs" />
     <Compile Include="Util\DeferredAction.cs" />
@@ -307,9 +304,6 @@
       <DependentUpon>OperationProgressNotifyWidget.cs</DependentUpon>
     </Compile>
     <Compile Include="WinForms\ServerNotifyIcon.cs" />
-    <Compile Include="WinForms\UpdateAvailableNotifyWidget.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
     <Compile Include="WinForms\BackgroundForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -5663,7 +5657,6 @@
     <Content Include="Icons\wireless16.png" />
     <None Include="Resources\folder_vertical_document.png" />
     <None Include="Resources\folder_vertical_open.png" />
-    <None Include="Resources\update.png" />
     <None Include="Resources\folder-directory-files-icon_remove.png" />
     <None Include="Resources\folder-directory-files-icon_add.png" />
     <None Include="Resources\folder-directory-files-icon.png" />

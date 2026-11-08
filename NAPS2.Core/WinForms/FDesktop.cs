@@ -33,7 +33,6 @@ using NAPS2.Scan.Exceptions;
 using NAPS2.Scan.Images;
 using NAPS2.Scan.Wia;
 using NAPS2.Scan.Wia.Native;
-using NAPS2.Update;
 using NAPS2.Util;
 using NAPS2.Worker;
 using ZXing;
@@ -71,7 +70,6 @@ namespace NAPS2.WinForms
         private readonly CultureInitializer cultureInitializer;
         private readonly IWorkerServiceFactory workerServiceFactory;
         private readonly IOperationProgress operationProgress;
-        private readonly UpdateChecker updateChecker;
         private readonly ImageSettingsContainer imageSettingsContainer;
 
         #endregion
@@ -108,7 +106,7 @@ namespace NAPS2.WinForms
 
         #region Initialization and Culture
 
-        public FDesktop(ImageSettingsContainer imageSettingsContainer, StringWrapper stringWrapper, AppConfigManager appConfigManager, RecoveryManager recoveryManager, OcrManager ocrManager, IProfileManager profileManager, IScanPerformer scanPerformer, IScannedImagePrinter scannedImagePrinter, ChangeTracker changeTracker, StillImage stillImage, IOperationFactory operationFactory, IUserConfigManager userConfigManager, KeyboardShortcutManager ksm, ThumbnailRenderer thumbnailRenderer, WinFormsExportHelper exportHelper, ScannedImageRenderer scannedImageRenderer, NotificationManager notify, CultureInitializer cultureInitializer, IWorkerServiceFactory workerServiceFactory, IOperationProgress operationProgress, UpdateChecker updateChecker, ScannedImageHelper scannedImageHelper)
+        public FDesktop(ImageSettingsContainer imageSettingsContainer, StringWrapper stringWrapper, AppConfigManager appConfigManager, RecoveryManager recoveryManager, OcrManager ocrManager, IProfileManager profileManager, IScanPerformer scanPerformer, IScannedImagePrinter scannedImagePrinter, ChangeTracker changeTracker, StillImage stillImage, IOperationFactory operationFactory, IUserConfigManager userConfigManager, KeyboardShortcutManager ksm, ThumbnailRenderer thumbnailRenderer, WinFormsExportHelper exportHelper, ScannedImageRenderer scannedImageRenderer, NotificationManager notify, CultureInitializer cultureInitializer, IWorkerServiceFactory workerServiceFactory, IOperationProgress operationProgress, ScannedImageHelper scannedImageHelper)
         {
             this.stringWrapper = stringWrapper;
             this.appConfigManager = appConfigManager;
@@ -129,7 +127,6 @@ namespace NAPS2.WinForms
             this.cultureInitializer = cultureInitializer;
             this.workerServiceFactory = workerServiceFactory;
             this.operationProgress = operationProgress;
-            this.updateChecker = updateChecker;
             this.imageSettingsContainer = imageSettingsContainer;
             this.scannedImageHelper = scannedImageHelper;
 
@@ -446,28 +443,6 @@ namespace NAPS2.WinForms
                 //notify.DonatePrompt();
             }
 
-            if (userConfigManager.Config.CheckForUpdates &&
-                (userConfigManager.Config.LastUpdateCheckDate == null ||
-                 userConfigManager.Config.LastUpdateCheckDate < DateTime.Now - updateChecker.CheckInterval))
-            {
-                updateChecker.CheckForUpdates().ContinueWith(task =>
-                {
-                    if (task.IsFaulted)
-                    {
-                        Log.ErrorException("Error checking for updates", task.Exception);
-                    }
-                    else
-                    {
-                        userConfigManager.Config.LastUpdateCheckDate = DateTime.Now;
-                        userConfigManager.Save();
-                    }
-                    var update = task.Result;
-                    if (update != null)
-                    {
-                        SafeInvoke(() => notify.UpdateAvailable(updateChecker, update));
-                    }
-                }).AssertNoAwait();
-            }
 #endif
         }
 

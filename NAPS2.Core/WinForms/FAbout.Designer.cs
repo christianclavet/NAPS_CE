@@ -41,9 +41,6 @@ namespace NAPS2.WinForms
             this.label1 = new System.Windows.Forms.Label();
             this.linkLabel2 = new System.Windows.Forms.LinkLabel();
             this.btnDonate = new System.Windows.Forms.PictureBox();
-            this.cbCheckForUpdates = new System.Windows.Forms.CheckBox();
-            this.lblUpdateStatus = new System.Windows.Forms.Label();
-            this.linkInstall = new System.Windows.Forms.LinkLabel();
             this.linkLabel3 = new System.Windows.Forms.LinkLabel();
             this.label2 = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
@@ -108,24 +105,6 @@ namespace NAPS2.WinForms
             this.btnDonate.TabStop = false;
             this.btnDonate.Click += new System.EventHandler(this.btnDonate_Click);
             // 
-            // cbCheckForUpdates
-            // 
-            resources.ApplyResources(this.cbCheckForUpdates, "cbCheckForUpdates");
-            this.cbCheckForUpdates.Name = "cbCheckForUpdates";
-            this.cbCheckForUpdates.UseVisualStyleBackColor = true;
-            this.cbCheckForUpdates.CheckedChanged += new System.EventHandler(this.cbCheckForUpdates_CheckedChanged);
-            // 
-            // lblUpdateStatus
-            // 
-            resources.ApplyResources(this.lblUpdateStatus, "lblUpdateStatus");
-            this.lblUpdateStatus.Name = "lblUpdateStatus";
-            // 
-            // linkInstall
-            // 
-            resources.ApplyResources(this.linkInstall, "linkInstall");
-            this.linkInstall.Name = "linkInstall";
-            this.linkInstall.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.linkInstall_LinkClicked);
-            // 
             // linkLabel3
             // 
             resources.ApplyResources(this.linkLabel3, "linkLabel3");
@@ -159,9 +138,6 @@ namespace NAPS2.WinForms
             this.Controls.Add(this.label3);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.linkLabel3);
-            this.Controls.Add(this.linkInstall);
-            this.Controls.Add(this.lblUpdateStatus);
-            this.Controls.Add(this.cbCheckForUpdates);
             this.Controls.Add(this.btnDonate);
             this.Controls.Add(this.linkLabel2);
             this.Controls.Add(this.label1);
@@ -193,9 +169,6 @@ namespace NAPS2.WinForms
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.LinkLabel linkLabel2;
         private System.Windows.Forms.PictureBox btnDonate;
-        private System.Windows.Forms.CheckBox cbCheckForUpdates;
-        private System.Windows.Forms.Label lblUpdateStatus;
-        private System.Windows.Forms.LinkLabel linkInstall;
         private System.Windows.Forms.LinkLabel linkLabel3;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label3;
