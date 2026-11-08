@@ -36,10 +36,6 @@ namespace NAPS2.Config
         public string SaveImagesAll { get; set; }
         public string SaveImagesSelected { get; set; }
 
-        public string EmailPDF { get; set; }
-        public string EmailPDFAll { get; set; }
-        public string EmailPDFSelected { get; set; }
-
         public string Print { get; set; }
 
         public string ImageView { get; set; }

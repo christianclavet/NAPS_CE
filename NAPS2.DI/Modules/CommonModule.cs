@@ -5,7 +5,6 @@ using System.Linq;
 using NAPS2.ClientServer;
 using NAPS2.Config;
 using NAPS2.ImportExport;
-using NAPS2.ImportExport.Email;
 using NAPS2.ImportExport.Images;
 using NAPS2.ImportExport.Pdf;
 using NAPS2.Logging;
@@ -40,7 +39,6 @@ namespace NAPS2.DI.Modules
             // Export
             Bind<IPdfExporter>().To<PdfSharpExporter>();
             Bind<IScannedImagePrinter>().To<PrintDocumentPrinter>();
-            Bind<IEmailProviderFactory>().To<NinjectEmailProviderFactory>();
             Bind<OcrManager>().ToSelf().InSingletonScope();
             Bind<OcrRequestQueue>().ToSelf().InSingletonScope();
 
@@ -63,7 +61,6 @@ namespace NAPS2.DI.Modules
             Bind<IUserConfigManager>().To<UserConfigManager>().InSingletonScope();
             Bind<PdfSettingsContainer>().ToSelf().InSingletonScope();
             Bind<ImageSettingsContainer>().ToSelf().InSingletonScope();
-            Bind<EmailSettingsContainer>().ToSelf().InSingletonScope();
 
             // Host
             Bind<IWorkerServiceFactory>().To<NinjectWorkerServiceFactory>();

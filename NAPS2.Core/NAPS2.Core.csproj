@@ -175,7 +175,6 @@
     <Compile Include="Dependencies\DownloadMirror.cs" />
     <Compile Include="Dependencies\MultiFileExternalComponent.cs" />
     <Compile Include="Dependencies\IExternalComponent.cs" />
-    <Compile Include="ImportExport\Email\Mapi\MapiWrapper.cs" />
     <Compile Include="ImportExport\Images\ProjectSettings.cs" />
     <Compile Include="ImportExport\Images\SaveImagesOperationProject.cs" />
     <Compile Include="ImportExport\Pdf\PdfImageSettings.cs" />
@@ -327,18 +326,6 @@
     <Compile Include="ImportExport\AutoSave.cs" />
     <Compile Include="ImportExport\DirectProfileTransfer.cs" />
     <Compile Include="ImportExport\DirectImportOperation.cs" />
-    <Compile Include="ImportExport\Email\EmailProviderType.cs" />
-    <Compile Include="ImportExport\Email\EmailSetup.cs" />
-    <Compile Include="ImportExport\Email\IEmailProviderFactory.cs" />
-    <Compile Include="ImportExport\Email\Oauth\OutlookWebEmailProvider.cs" />
-    <Compile Include="ImportExport\Email\Oauth\OutlookWebOauthProvider.cs" />
-    <Compile Include="ImportExport\Email\Oauth\GmailOauthProvider.cs" />
-    <Compile Include="ImportExport\Email\Oauth\GmailEmailProvider.cs" />
-    <Compile Include="ImportExport\Email\MimeEmailProvider.cs" />
-    <Compile Include="ImportExport\Email\Oauth\OauthProvider.cs" />
-    <Compile Include="ImportExport\Email\Oauth\OauthClientCreds.cs" />
-    <Compile Include="ImportExport\Email\Oauth\OauthToken.cs" />
-    <Compile Include="ImportExport\Email\Mapi\SystemEmailClients.cs" />
     <Compile Include="ImportExport\IAutoSave.cs" />
     <Compile Include="ImportExport\Images\TiffCompression.cs" />
     <Compile Include="ImportExport\ImportOperation.cs" />
@@ -402,8 +389,6 @@
     <Compile Include="Config\UserConfig.cs" />
     <Compile Include="Config\UserConfigManager.cs" />
     <Compile Include="ImportExport\FileNamePlaceholders.cs" />
-    <Compile Include="ImportExport\Email\EmailSettings.cs" />
-    <Compile Include="ImportExport\Email\EmailSettingsContainer.cs" />
     <Compile Include="ImportExport\Images\ImageSettings.cs" />
     <Compile Include="ImportExport\Images\ImageSettingsContainer.cs" />
     <Compile Include="ImportExport\Pdf\IPdfPasswordProvider.cs" />
@@ -454,18 +439,6 @@
     <Compile Include="WinForms\ILProfileIcons.Designer.cs">
       <DependentUpon>ILProfileIcons.cs</DependentUpon>
     </Compile>
-    <Compile Include="ImportExport\Email\EmailAttachment.cs" />
-    <Compile Include="ImportExport\Email\EmailMessage.cs" />
-    <Compile Include="ImportExport\Email\EmailRecipient.cs" />
-    <Compile Include="ImportExport\Email\EmailRecipientType.cs" />
-    <Compile Include="ImportExport\Email\IEmailProvider.cs" />
-    <Compile Include="ImportExport\Email\Mapi\MapiEmailProvider.cs" />
-    <Compile Include="ImportExport\Email\Mapi\MapiFileDesc.cs" />
-    <Compile Include="ImportExport\Email\Mapi\MapiMessage.cs" />
-    <Compile Include="ImportExport\Email\Mapi\MapiRecipClass.cs" />
-    <Compile Include="ImportExport\Email\Mapi\MapiRecipDesc.cs" />
-    <Compile Include="ImportExport\Email\Mapi\MapiSendMailFlags.cs" />
-    <Compile Include="ImportExport\Email\Mapi\MapiSendMailReturnCode.cs" />
     <Compile Include="ImportExport\Images\ImageImporter.cs" />
     <Compile Include="ImportExport\Images\SaveImagesOperation.cs" />
     <Compile Include="ImportExport\Images\IImageImporter.cs" />
@@ -537,12 +510,6 @@
     <Compile Include="WinForms\DragScrollListView.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="WinForms\EmailProviderWidget.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="WinForms\EmailProviderWidget.Designer.cs">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </Compile>
     <Compile Include="WinForms\FAbout.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -554,12 +521,6 @@
     </Compile>
     <Compile Include="WinForms\FAdvancedScanSettings.Designer.cs">
       <DependentUpon>FAdvancedScanSettings.cs</DependentUpon>
-    </Compile>
-    <Compile Include="WinForms\FAuthorize.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="WinForms\FAuthorize.Designer.cs">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
     </Compile>
     <Compile Include="WinForms\FAutoSaveSettings.cs">
       <SubType>Form</SubType>
@@ -578,12 +539,6 @@
     </Compile>
     <Compile Include="WinForms\FBatchScan.Designer.cs">
       <DependentUpon>FBatchScan.cs</DependentUpon>
-    </Compile>
-    <Compile Include="WinForms\FEmailProvider.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="WinForms\FEmailProvider.Designer.cs">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
     </Compile>
     <Compile Include="WinForms\FHueSaturation.cs">
       <SubType>Form</SubType>
@@ -620,12 +575,6 @@
     </Compile>
     <Compile Include="WinForms\FEditProfile.Designer.cs">
       <DependentUpon>FEditProfile.cs</DependentUpon>
-    </Compile>
-    <Compile Include="WinForms\FEmailSettings.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="WinForms\FEmailSettings.Designer.cs">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
     </Compile>
     <Compile Include="WinForms\FError.cs">
       <SubType>Form</SubType>
@@ -1466,132 +1415,6 @@
     <EmbeddedResource Include="Lang\Resources\SettingsResources.zh-TW.resx" Condition="'$(Configuration)' != 'Debug'">
       <DependentUpon>SettingsResources.resx</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.af.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.ar.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.bg.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.ca.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.cs.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.da.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.de.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.el.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.es.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.et.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.fa.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.fi.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.fr.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.he.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.hr.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.hu.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.it.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.ja.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.ko.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.lt.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.lv.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.nb.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.nl.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.nn.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.pl.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.pt-BR.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.pt-PT.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.resx">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.ro.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.ru.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.si.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.sk.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.sl.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.sq.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.sr-Cyrl.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.sr-Latn.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.sv.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.tr.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.uk.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.vi.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.zh-CHS.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\EmailProviderWidget.zh-TW.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>EmailProviderWidget.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="WinForms\FAbout.af.resx" Condition="'$(Configuration)' != 'Debug'">
       <DependentUpon>FAbout.cs</DependentUpon>
     </EmbeddedResource>
@@ -1845,132 +1668,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="WinForms\FAdvancedScanSettings.zh-TW.resx" Condition="'$(Configuration)' != 'Debug'">
       <DependentUpon>FAdvancedScanSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.af.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.ar.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.bg.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.ca.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.cs.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.da.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.de.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.el.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.es.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.et.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.fa.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.fi.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.fr.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.he.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.hr.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.hu.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.it.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.ja.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.ko.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.lt.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.lv.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.nb.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.nl.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.nn.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.pl.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.pt-BR.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.pt-PT.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.resx">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.ro.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.ru.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.si.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.sk.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.sl.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.sq.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.sr-Cyrl.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.sr-Latn.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.sv.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.tr.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.uk.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.vi.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.zh-CHS.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FAuthorize.zh-TW.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FAuthorize.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="WinForms\FAutoSaveSettings.af.resx" Condition="'$(Configuration)' != 'Debug'">
       <DependentUpon>FAutoSaveSettings.cs</DependentUpon>
@@ -2351,132 +2048,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="WinForms\FBatchScan.zh-TW.resx" Condition="'$(Configuration)' != 'Debug'">
       <DependentUpon>FBatchScan.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.af.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.ar.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.bg.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.ca.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.cs.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.da.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.de.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.el.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.es.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.et.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.fa.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.fi.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.fr.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.he.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.hr.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.hu.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.it.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.ja.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.ko.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.lt.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.lv.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.nb.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.nl.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.nn.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.pl.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.pt-BR.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.pt-PT.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.resx">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.ro.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.ru.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.si.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.sk.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.sl.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.sq.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.sr-Cyrl.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.sr-Latn.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.sv.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.tr.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.uk.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.vi.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.zh-CHS.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailProvider.zh-TW.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailProvider.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="WinForms\FHueSaturation.af.resx" Condition="'$(Configuration)' != 'Debug'">
       <DependentUpon>FHueSaturation.cs</DependentUpon>
@@ -3114,133 +2685,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="WinForms\FEditProfile.zh-TW.resx" Condition="'$(Configuration)' != 'Debug'">
       <DependentUpon>FEditProfile.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.af.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.ar.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.bg.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.ca.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.cs.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.da.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.de.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.el.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.es.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.et.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.fa.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.fi.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.fr.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.he.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.hr.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.hu.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.it.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.ja.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.ko.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.lt.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.lv.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.nb.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.nl.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.nn.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.pl.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.pt-BR.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.pt-PT.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.resx">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.ro.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.ru.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.si.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.sk.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.sl.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.sq.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.sr-Cyrl.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.sr-Latn.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.sv.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.tr.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.uk.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.vi.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.zh-CHS.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="WinForms\FEmailSettings.zh-TW.resx" Condition="'$(Configuration)' != 'Debug'">
-      <DependentUpon>FEmailSettings.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="WinForms\FError.af.resx" Condition="'$(Configuration)' != 'Debug'">
       <DependentUpon>FError.cs</DependentUpon>
@@ -6267,14 +5711,9 @@
     <Content Include="Icons\contrast_high.ico" />
     <Content Include="Icons\contrast_with_sun.ico" />
     <Content Include="Icons\control_play_blue-small.png" />
-    <Content Include="Icons\email.ico" />
-    <None Include="Icons\email_setting.png" />
     <Content Include="Icons\file_extension_pdf.ico" />
-    <None Include="Icons\gmail.png" />
     <None Include="Icons\hourglass_grey.png" />
     <Content Include="Icons\image_edit.png" />
-    <None Include="Icons\outlookweb.png" />
-    <None Include="Icons\mail_yellow.png" />
     <Content Include="Icons\key.ico" />
     <Content Include="Icons\picture.ico" />
     <Content Include="Icons\pictures.png" />
@@ -6321,11 +5760,9 @@
     <None Include="Icons\picture.png" />
     <None Include="Icons\pencil.png" />
     <None Include="Icons\pencil-small.png" />
-    <None Include="Icons\pdf_email.png" />
     <None Include="Icons\information.png" />
     <None Include="Icons\info_rhombus.png" />
     <None Include="Icons\file_extension_pdf.png" />
-    <None Include="Icons\email_attach.png" />
     <None Include="Icons\cross.png" />
     <None Include="Icons\cross-small.png" />
     <None Include="Icons\cancel.png" />
@@ -6351,9 +5788,6 @@
     </PackageReference>
     <PackageReference Include="Magick.NET.SystemDrawing">
       <Version>9.0.0</Version>
-    </PackageReference>
-    <PackageReference Include="MailKit">
-      <Version>4.13.0</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces">
       <Version>10.0.3</Version>

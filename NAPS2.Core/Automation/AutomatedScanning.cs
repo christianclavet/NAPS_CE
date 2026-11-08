@@ -9,7 +9,6 @@ using System.Xml.Serialization;
 using NAPS2.Config;
 using NAPS2.Dependencies;
 using NAPS2.ImportExport;
-using NAPS2.ImportExport.Email;
 using NAPS2.ImportExport.Images;
 using NAPS2.ImportExport.Pdf;
 using NAPS2.Lang.ConsoleResources;
@@ -25,7 +24,6 @@ namespace NAPS2.Automation
 {
     public class AutomatedScanning
     {
-        private readonly IEmailProviderFactory emailProviderFactory;
         private readonly IProfileManager profileManager;
         private readonly IScanPerformer scanPerformer;
         private readonly IErrorOutput errorOutput;
@@ -47,13 +45,12 @@ namespace NAPS2.Automation
         private List<string> actualOutputPaths;
         private OcrParams ocrParams;
 
-        public AutomatedScanning(AutomatedScanningOptions options, IProfileManager profileManager, IScanPerformer scanPerformer, IErrorOutput errorOutput, IEmailProviderFactory emailProviderFactory, IScannedImageImporter scannedImageImporter, IUserConfigManager userConfigManager, PdfSettingsContainer pdfSettingsContainer, FileNamePlaceholders fileNamePlaceholders, ImageSettingsContainer imageSettingsContainer, IOperationFactory operationFactory, AppConfigManager appConfigManager, OcrManager ocrManager, IFormFactory formFactory)
+        public AutomatedScanning(AutomatedScanningOptions options, IProfileManager profileManager, IScanPerformer scanPerformer, IErrorOutput errorOutput, IScannedImageImporter scannedImageImporter, IUserConfigManager userConfigManager, PdfSettingsContainer pdfSettingsContainer, FileNamePlaceholders fileNamePlaceholders, ImageSettingsContainer imageSettingsContainer, IOperationFactory operationFactory, AppConfigManager appConfigManager, OcrManager ocrManager, IFormFactory formFactory)
         {
             this.options = options;
             this.profileManager = profileManager;
             this.scanPerformer = scanPerformer;
             this.errorOutput = errorOutput;
-            this.emailProviderFactory = emailProviderFactory;
             this.scannedImageImporter = scannedImageImporter;
             this.userConfigManager = userConfigManager;
             this.pdfSettingsContainer = pdfSettingsContainer;
@@ -90,7 +87,7 @@ namespace NAPS2.Automation
                 if (options.Install != null)
                 {
                     InstallComponents();
-                    if (options.OutputPath == null && options.EmailFileName == null && !options.AutoSave)
+                    if (options.OutputPath == null && !options.AutoSave)
                     {
                         return;
                     }
@@ -127,11 +124,6 @@ namespace NAPS2.Automation
                     await ExportScannedImages();
                 }
 
-                if (options.EmailFileName != null)
-                {
-                    await EmailScannedImages();
-                }
-
                 foreach (var image in AllImages)
                 {
                     image.Dispose();
@@ -153,7 +145,7 @@ namespace NAPS2.Automation
 
         private void ConfigureOcr()
         {
-            bool canUseOcr = IsPdfFile(options.OutputPath) || IsPdfFile(options.EmailFileName);
+            bool canUseOcr = IsPdfFile(options.OutputPath);
             bool useOcr = canUseOcr && !options.DisableOcr && (options.EnableOcr || options.OcrLang != null || userConfigManager.Config.EnableOcr || appConfigManager.Config.OcrState == OcrState.Enabled);
             string ocrLanguageCode = useOcr ? (options.OcrLang ?? ocrManager.DefaultParams?.LanguageCode) : null;
             ocrParams = new OcrParams(ocrLanguageCode, ocrManager.DefaultParams?.Mode ?? OcrMode.Default);
@@ -241,7 +233,6 @@ namespace NAPS2.Automation
         {
             if (options.OutputPath == null)
             {
-                // Email, so no check needed
                 return true;
             }
             var subPath = fileNamePlaceholders.SubstitutePlaceholders(options.OutputPath, startTime);
@@ -287,114 +278,15 @@ namespace NAPS2.Automation
             }
         }
 
-        private async Task EmailScannedImages()
-        {
-            if (scanList.Count == 0)
-            {
-                errorOutput.DisplayError(ConsoleResources.NoPagesToEmail);
-                return;
-            }
-
-
-            OutputVerbose(ConsoleResources.Emailing);
-
-            var message = new EmailMessage
-            {
-                Subject = fileNamePlaceholders.SubstitutePlaceholders(options.EmailSubject, startTime, false) ?? "",
-                BodyText = fileNamePlaceholders.SubstitutePlaceholders(options.EmailBody, startTime, false),
-                AutoSend = options.EmailAutoSend,
-                SilentSend = options.EmailSilentSend
-            };
-
-            message.Recipients.AddRange(EmailRecipient.FromText(EmailRecipientType.To, options.EmailTo));
-            message.Recipients.AddRange(EmailRecipient.FromText(EmailRecipientType.Cc, options.EmailCc));
-            message.Recipients.AddRange(EmailRecipient.FromText(EmailRecipientType.Bcc, options.EmailBcc));
-
-            var tempFolder = new DirectoryInfo(Path.Combine(Paths.Temp, Path.GetRandomFileName()));
-            tempFolder.Create();
-            try
-            {
-                string targetPath = Path.Combine(tempFolder.FullName, options.EmailFileName);
-                if (IsPdfFile(targetPath))
-                {
-                    if (options.OutputPath != null && IsPdfFile(options.OutputPath))
-                    {
-                        // The scan has already been exported to PDF, so use that file
-                        OutputVerbose(ConsoleResources.AttachingExportedPDF);
-                        int digits = (int)Math.Floor(Math.Log10(scanList.Count)) + 1;
-                        int i = 0;
-                        foreach (var path in actualOutputPaths)
-                        {
-                            string attachmentName = fileNamePlaceholders.SubstitutePlaceholders(options.EmailFileName, startTime, false, i++, scanList.Count > 1 ? digits : 0);
-                            message.Attachments.Add(new EmailAttachment
-                            {
-                                FilePath = path,
-                                AttachmentName = attachmentName
-                            });
-                        }
-                    }
-                    else
-                    {
-                        // The scan hasn't bee exported to PDF yet, so it needs to be exported to the temp folder
-                        OutputVerbose(ConsoleResources.ExportingPDFToAttach);
-                        if (!await DoExportToPdf(targetPath, true))
-                        {
-                            OutputVerbose(ConsoleResources.EmailNotSent);
-                            return;
-                        }
-                        // Attach the PDF file
-                        AttachFilesInFolder(tempFolder, message);
-                    }
-                }
-                else
-                {
-                    // Export the images to the temp folder
-                    // Don't bother to re-use previously exported images, because the possible different formats and multiple files makes it non-trivial,
-                    // and exporting is pretty cheap anyway
-                    OutputVerbose(ConsoleResources.ExportingImagesToAttach);
-                    await DoExportToImageFiles(targetPath);
-                    // Attach the image file(s)
-                    AttachFilesInFolder(tempFolder, message);
-                }
-
-                OutputVerbose(ConsoleResources.SendingEmail);
-                if (await emailProviderFactory.Default.SendEmail(message, (j, k) => { }, CancellationToken.None))
-                {
-                    OutputVerbose(ConsoleResources.EmailSent);
-                }
-                else
-                {
-                    OutputVerbose(ConsoleResources.EmailNotSent);
-                }
-            }
-            finally
-            {
-                tempFolder.Delete(true);
-            }
-        }
-
-        private void AttachFilesInFolder(DirectoryInfo folder, EmailMessage message)
-        {
-            foreach (var file in folder.EnumerateFiles())
-            {
-                OutputVerbose(ConsoleResources.Attaching, file.Name);
-                message.Attachments.Add(new EmailAttachment
-                {
-                    FilePath = file.FullName,
-                    AttachmentName = file.Name
-                });
-            }
-        }
-
         public bool ValidateOptions()
         {
             // Most validation is done by the CommandLineParser library, but some constraints that can't be represented by that API need to be checked here
-            if (options.OutputPath == null && options.EmailFileName == null && options.Install == null && !options.AutoSave)
+            if (options.OutputPath == null && options.Install == null && !options.AutoSave)
             {
                 errorOutput.DisplayError(ConsoleResources.OutputOrEmailRequired);
                 return false;
             }
-            if (options.OutputPath == null && options.EmailFileName == null && options.ImportPath != null)
+            if (options.OutputPath == null && options.ImportPath != null)
             {
                 errorOutput.DisplayError(ConsoleResources.OutputOrEmailRequiredForImport);
                 return false;
@@ -465,10 +357,10 @@ namespace NAPS2.Automation
 
         private async Task ExportToPdf()
         {
-            await DoExportToPdf(options.OutputPath, false);
+            await DoExportToPdf(options.OutputPath);
         }
 
-        private async Task<bool> DoExportToPdf(string path, bool email)
+        private async Task<bool> DoExportToPdf(string path)
         {
             var metadata = options.UseSavedMetadata ? pdfSettingsContainer.PdfSettings.Metadata : new PdfMetadata();
             metadata.Creator = ConsoleResources.NAPS2;
@@ -547,16 +439,13 @@ namespace NAPS2.Automation
                 };
                 int digits = (int)Math.Floor(Math.Log10(scanList.Count)) + 1;
                 string actualPath = fileNamePlaceholders.SubstitutePlaceholders(path, startTime, true, scanIndex++, scanList.Count > 1 ? digits : 0);
-                op.Start(actualPath, startTime, fileContents, pdfSettings, ocrParams, email, null);
+                op.Start(actualPath, startTime, fileContents, pdfSettings, ocrParams);
                 if (!await op.Success)
                 {
                     return false;
                 }
                 actualOutputPaths.Add(actualPath);
-                if (!email)
-                {
-                    OutputVerbose(ConsoleResources.SuccessfullySavedPdf, actualPath);
-                }
+                OutputVerbose(ConsoleResources.SuccessfullySavedPdf, actualPath);
             }
             return true;
         }
@@ -569,7 +458,7 @@ namespace NAPS2.Automation
             if (options.AutoSave && !autoSaveEnabled)
             {
                 errorOutput.DisplayError(ConsoleResources.AutoSaveNotEnabled);
-                if (options.OutputPath == null && options.EmailFileName == null)
+                if (options.OutputPath == null)
                 {
                     return;
                 }

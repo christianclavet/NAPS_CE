@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using NAPS2.ImportExport.Email;
 using NAPS2.Lang.Resources;
 using NAPS2.Logging;
 using NAPS2.Ocr;
@@ -19,14 +18,11 @@ namespace NAPS2.ImportExport.Pdf
         private readonly FileNamePlaceholders fileNamePlaceholders;
         private readonly IPdfExporter pdfExporter;
         private readonly IOverwritePrompt overwritePrompt;
-        private readonly IEmailProviderFactory emailProviderFactory;
-
-        public SavePdfOperation(FileNamePlaceholders fileNamePlaceholders, IPdfExporter pdfExporter, IOverwritePrompt overwritePrompt, IEmailProviderFactory emailProviderFactory)
+        public SavePdfOperation(FileNamePlaceholders fileNamePlaceholders, IPdfExporter pdfExporter, IOverwritePrompt overwritePrompt)
         {
             this.fileNamePlaceholders = fileNamePlaceholders;
             this.pdfExporter = pdfExporter;
             this.overwritePrompt = overwritePrompt;
-            this.emailProviderFactory = emailProviderFactory;
 
             AllowCancel = true;
             AllowBackground = false;
@@ -34,9 +30,9 @@ namespace NAPS2.ImportExport.Pdf
 
         public string FirstFileSaved { get; private set; }
 
-        public bool Start(string fileName, DateTime dateTime, ICollection<ScannedImage> images, PdfSettings pdfSettings, OcrParams ocrParams, bool email, EmailMessage emailMessage)
+        public bool Start(string fileName, DateTime dateTime, ICollection<ScannedImage> images, PdfSettings pdfSettings, OcrParams ocrParams)
         {
-            ProgressTitle = email ? MiscResources.EmailPdfProgress : MiscResources.SavePdfProgress;
+            ProgressTitle = MiscResources.SavePdfProgress;
             Status = new OperationStatus
             {
                 MaxProgress = images.Count
@@ -88,11 +84,6 @@ namespace NAPS2.ImportExport.Pdf
                         {
                             break;
                         }
-                        emailMessage?.Attachments.Add(new EmailAttachment
-                        {
-                            FilePath = subFileName,
-                            AttachmentName = Path.GetFileName(subFileName)
-                        });
                         if (i == 0)
                         {
                             FirstFileSaved = subFileName;
@@ -131,52 +122,18 @@ namespace NAPS2.ImportExport.Pdf
                     GC.Collect();
                 }
 
-                if (result && !CancelToken.IsCancellationRequested && email && emailMessage != null)
-                {
-                    Status.StatusText = MiscResources.UploadingEmail;
-                    Status.CurrentProgress = 0;
-                    Status.MaxProgress = 1;
-                    Status.ProgressType = OperationProgressType.MB;
-                    InvokeStatusChanged();
-
-                    try
-                    {
-                        result = await emailProviderFactory.Default.SendEmail(emailMessage, OnProgress, CancelToken);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.ErrorException(MiscResources.ErrorEmailing, ex);
-                        InvokeError(MiscResources.ErrorEmailing, ex);
-                    }
-                }
-
                 return result;
             });
             Success.ContinueWith(task =>
             {
                 if (task.Result)
                 {
-                    if (email)
+                    Log.Event(EventType.SavePdf, new Event
                     {
-                        Log.Event(EventType.Email, new Event
-                        {
-                            Name = MiscResources.EmailPdf,
-                            Pages = snapshots.Count,
-                            FileFormat = ".pdf"
-                        });
-                    }
-                    else
-                    {
-                        Log.Event(EventType.SavePdf, new Event
-                        {
-                            Name = MiscResources.SavePdf,
-                            Pages = snapshots.Count,
-                            FileFormat = ".pdf"
-                        });
-                    }
+                        Name = MiscResources.SavePdf,
+                        Pages = snapshots.Count,
+                        FileFormat = ".pdf"
+                    });
                 }
             }, TaskContinuationOptions.OnlyOnRanToCompletion);
 

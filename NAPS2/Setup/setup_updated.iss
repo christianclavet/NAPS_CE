@@ -62,7 +62,6 @@ Source: "..\bin\InstallerEXE\NAPS2.DI.dll"; DestDir: "{app}\lib"; Flags: ignorev
 Source: "..\bin\InstallerEXE\CommandLine.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\Ghostscript.NET.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\ICSharpCode.SharpZipLib.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\MimeKit.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\Newtonsoft.Json.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\Ninject.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\NLog.dll"; DestDir: "{app}\lib"; Flags: ignoreversion

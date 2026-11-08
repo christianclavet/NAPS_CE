@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.ServiceModel;
 using System.Threading.Tasks;
-using NAPS2.ImportExport.Email;
-using NAPS2.ImportExport.Email.Mapi;
 using NAPS2.Scan;
 using NAPS2.Scan.Images;
 using NAPS2.Scan.Wia;
@@ -36,9 +34,6 @@ namespace NAPS2.Worker
 
         [OperationContract]
         void CancelTwainScan();
-
-        [OperationContract]
-        MapiSendMailReturnCode SendMapiEmail(string clientName, EmailMessage message);
 
         [OperationContract]
         byte[] RenderThumbnail(ScannedImage.Snapshot snapshot, int size);

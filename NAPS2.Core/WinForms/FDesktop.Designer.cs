@@ -76,11 +76,6 @@ namespace NAPS2.WinForms
             this.tsSaveImagesSelected = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator11 = new System.Windows.Forms.ToolStripSeparator();
             this.tsImageSettings = new System.Windows.Forms.ToolStripMenuItem();
-            this.tsdEmailPDF = new System.Windows.Forms.ToolStripMenuItem();
-            this.tsEmailPDFAll = new System.Windows.Forms.ToolStripMenuItem();
-            this.tsEmailPDFSelected = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripSeparator9 = new System.Windows.Forms.ToolStripSeparator();
-            this.tsEmailSettings = new System.Windows.Forms.ToolStripMenuItem();
             this.tsPdfSettings2 = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator5 = new System.Windows.Forms.ToolStripSeparator();
             this.tsImport = new System.Windows.Forms.ToolStripMenuItem();
@@ -475,7 +470,6 @@ namespace NAPS2.WinForms
             this.toolStripSeparator15,
             this.tsdSavePDF,
             this.tsdSaveImages,
-            this.tsdEmailPDF,
             this.toolStripSeparator5,
             this.tsImport,
             this.tsExport,
@@ -604,39 +598,6 @@ namespace NAPS2.WinForms
             this.tsImageSettings.Name = "tsImageSettings";
             resources.ApplyResources(this.tsImageSettings, "tsImageSettings");
             this.tsImageSettings.Click += new System.EventHandler(this.tsImageSettings_Click_1);
-            // 
-            // tsdEmailPDF
-            // 
-            this.tsdEmailPDF.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.tsEmailPDFAll,
-            this.tsEmailPDFSelected,
-            this.toolStripSeparator9,
-            this.tsEmailSettings,
-            this.tsPdfSettings2});
-            this.tsdEmailPDF.Image = global::NAPS2.Icons.email_attach;
-            resources.ApplyResources(this.tsdEmailPDF, "tsdEmailPDF");
-            this.tsdEmailPDF.Margin = new System.Windows.Forms.Padding(5, 1, 5, 2);
-            this.tsdEmailPDF.Name = "tsdEmailPDF";
-            // 
-            // tsEmailPDFAll
-            // 
-            this.tsEmailPDFAll.Name = "tsEmailPDFAll";
-            resources.ApplyResources(this.tsEmailPDFAll, "tsEmailPDFAll");
-            // 
-            // tsEmailPDFSelected
-            // 
-            this.tsEmailPDFSelected.Name = "tsEmailPDFSelected";
-            resources.ApplyResources(this.tsEmailPDFSelected, "tsEmailPDFSelected");
-            // 
-            // toolStripSeparator9
-            // 
-            this.toolStripSeparator9.Name = "toolStripSeparator9";
-            resources.ApplyResources(this.toolStripSeparator9, "toolStripSeparator9");
-            // 
-            // tsEmailSettings
-            // 
-            this.tsEmailSettings.Name = "tsEmailSettings";
-            resources.ApplyResources(this.tsEmailSettings, "tsEmailSettings");
             // 
             // tsPdfSettings2
             // 
@@ -1264,11 +1225,6 @@ namespace NAPS2.WinForms
         private System.Windows.Forms.ToolStripMenuItem tsSaveImagesSelected;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator11;
         private System.Windows.Forms.ToolStripMenuItem tsImageSettings;
-        private System.Windows.Forms.ToolStripMenuItem tsdEmailPDF;
-        private System.Windows.Forms.ToolStripMenuItem tsEmailPDFAll;
-        private System.Windows.Forms.ToolStripMenuItem tsEmailPDFSelected;
-        private System.Windows.Forms.ToolStripSeparator toolStripSeparator9;
-        private System.Windows.Forms.ToolStripMenuItem tsEmailSettings;
         private System.Windows.Forms.ToolStripMenuItem tsPdfSettings2;
         private System.Windows.Forms.ToolStripMenuItem tsTools;
         private System.Windows.Forms.ToolStripMenuItem tsLanguage;

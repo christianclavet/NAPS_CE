@@ -65,7 +65,6 @@ Source: "..\bin\InstallerEXE\ICSharpCode.SharpZipLib.dll"; DestDir: "{app}\lib";
 Source: "..\bin\InstallerEXE\Microsoft.Threading.Tasks.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\Microsoft.Threading.Tasks.Extensions.Desktop.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\Microsoft.Threading.Tasks.Extensions.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\MimeKit.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\Newtonsoft.Json.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\Ninject.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\NLog.dll"; DestDir: "{app}\lib"; Flags: ignoreversion

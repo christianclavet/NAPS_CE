@@ -38,9 +38,7 @@ using NAPS2.Util;
 using NAPS2.Worker;
 using ZXing;
 using NAPS2.ImportExport.Images;
-using Org.BouncyCastle.Tsp;
 using Castle.Core.Internal;
-using Org.BouncyCastle.Asn1.X509;
 using static System.Net.Mime.MediaTypeNames;
 
 #endregion
@@ -238,10 +236,6 @@ namespace NAPS2.WinForms
             if (appConfigManager.Config.HideSaveImagesButton)
             {
                 FileDm.DropDownItems.Remove(tsdSaveImages);
-            }
-            if (appConfigManager.Config.HideEmailButton)
-            {
-                FileDm.DropDownItems.Remove(tsdEmailPDF);
             }
             if (appConfigManager.Config.HidePrintButton)
             {
@@ -1105,14 +1099,14 @@ namespace NAPS2.WinForms
             UpdateOcrButtons();
 
             // "All" dropdown items
-            tsSavePDFAll.Text = tsSaveImagesAll.Text = tsEmailPDFAll.Text = tsReverseAll.Text =
+            tsSavePDFAll.Text = tsSaveImagesAll.Text = tsReverseAll.Text =
                 string.Format(MiscResources.AllCount, imageList.Images.Count);
-            tsSavePDFAll.Enabled = tsSaveImagesAll.Enabled = tsEmailPDFAll.Enabled = tsReverseAll.Enabled = tsBarCodeCheck.Enabled = tsExport.Enabled = tsdDocument.Enabled = imageList.Images.Any();
+            tsSavePDFAll.Enabled = tsSaveImagesAll.Enabled = tsReverseAll.Enabled = tsBarCodeCheck.Enabled = tsExport.Enabled = tsdDocument.Enabled = imageList.Images.Any();
 
             // "Selected" dropdown items
-            tsSavePDFSelected.Text = tsSaveImagesSelected.Text = tsEmailPDFSelected.Text = tsReverseSelected.Text =
+            tsSavePDFSelected.Text = tsSaveImagesSelected.Text = tsReverseSelected.Text =
                 string.Format(MiscResources.SelectedCount, SelectedIndices.Count());
-            tsSavePDFSelected.Enabled = tsSaveImagesSelected.Enabled = tsEmailPDFSelected.Enabled = tsReverseSelected.Enabled = 
+            tsSavePDFSelected.Enabled = tsSaveImagesSelected.Enabled = tsReverseSelected.Enabled = 
                 tsBlackWhite.Enabled = tsBrightnessContrast.Enabled = tsCrop.Enabled = tsMask.Enabled = tsHueSaturation.Enabled = 
                 printToolStripMenuItem.Enabled = tsReset.Enabled = tsSharpen.Enabled = tsView.Enabled = tsInsert.Enabled =
                 tsiDocumentAdd.Enabled = tsiDocumentRemove.Enabled = TS_BarcodeInfo.Enabled =
@@ -1124,7 +1118,7 @@ namespace NAPS2.WinForms
 
             // Top-level toolbar actions
             tsdRotate.Enabled = tsDelete.Enabled = SelectedIndices.Any();
-            tsdReorder.Enabled = tsdSavePDF.Enabled = tsdSaveImages.Enabled = tsdEmailPDF.Enabled = printToolStripMenuItem.Enabled = imageList.Images.Any();
+            tsdReorder.Enabled = tsdSavePDF.Enabled = tsdSaveImages.Enabled = printToolStripMenuItem.Enabled = imageList.Images.Any();
             
 
             // Context-menu actions
@@ -1427,11 +1421,6 @@ namespace NAPS2.WinForms
             }
         }
 
-        private async void EmailPDF(List<ScannedImage> images)
-        {
-            await exportHelper.EmailPDF(images);
-        }
-
         private void Import()
         {
             var ofd = new OpenFileDialog
@@ -1533,9 +1522,6 @@ namespace NAPS2.WinForms
             ksm.Assign(ks.BatchScan, tsBatchScan);
             //ksm.Assign(ks.Clear, tsClear);
             ksm.Assign(ks.Delete, tsDelete);
-            ksm.Assign(ks.EmailPDF, tsdEmailPDF);
-            ksm.Assign(ks.EmailPDFAll, tsEmailPDFAll);
-            ksm.Assign(ks.EmailPDFSelected, tsEmailPDFSelected);
             ksm.Assign(ks.ImageBlackWhite, tsBlackWhite);
             ksm.Assign(ks.ImageBrightness, tsBrightnessContrast);
             ksm.Assign(ks.ImageContrast, tsBrightnessContrast);
@@ -2071,30 +2057,6 @@ namespace NAPS2.WinForms
             }
         }
 
-        private void tsdEmailPDF_ButtonClick(object sender, EventArgs e)
-        {
-            if (appConfigManager.Config.HideEmailButton)
-            {
-                return;
-            }
-
-            var action = appConfigManager.Config.SaveButtonDefaultAction;
-
-            if (action == SaveButtonDefaultAction.AlwaysPrompt
-                || action == SaveButtonDefaultAction.PromptIfSelected && SelectedIndices.Any())
-            {
-                tsdEmailPDF.ShowDropDown();
-            }
-            else if (action == SaveButtonDefaultAction.SaveSelected && SelectedIndices.Any())
-            {
-                EmailPDF(SelectedImages.ToList());
-            }
-            else
-            {
-                EmailPDF(imageList.Images);
-            }
-        }
-
         private async void printToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (appConfigManager.Config.HidePrintButton)
@@ -2191,27 +2153,6 @@ namespace NAPS2.WinForms
             var form = FormFactory.Create<FImageSettings>().ShowDialog();
         }
 
-        private void tsEmailPDFAll_Click(object sender, EventArgs e)
-        {
-            if (appConfigManager.Config.HideEmailButton)
-            {
-                return;
-            }
-
-            EmailPDF(imageList.Images);
-        }
-
-    
-        private void tsEmailPDFSelected_Click(object sender, EventArgs e)
-        {
-            if (appConfigManager.Config.HideEmailButton)
-            {
-                return;
-            }
-
-            EmailPDF(SelectedImages.ToList());
-        }
-
         private void tsPdfSettings2_Click(object sender, EventArgs e)
         {
             var form = FormFactory.Create<FPdfSettings>().ShowDialog();
@@ -2220,11 +2161,6 @@ namespace NAPS2.WinForms
         private void tsVectorPdfDpi_Click(object sender, EventArgs e)
         {
             FormFactory.Create<FVectorPdfDpi>().ShowDialog();
-        }
-
-        private void tsEmailSettings_Click(object sender, EventArgs e)
-        {
-            var form = FormFactory.Create<FEmailSettings>().ShowDialog();
         }
 
         #endregion

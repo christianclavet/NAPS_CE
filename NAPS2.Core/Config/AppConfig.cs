@@ -35,8 +35,6 @@ namespace NAPS2.Config
 
         public bool HideSaveImagesButton { get; set; }
 
-        public bool HideEmailButton { get; set; }
-
         public bool HidePrintButton { get; set; }
 
         public bool HideDonateButton { get; set; }

@@ -133,49 +133,6 @@ namespace NAPS2.Automation
 
         #endregion
 
-        #region Email Options
-
-        [Option('e', "email", HelpText = "The name of the file to attach to an email." +
-                                         " The extension determines the output type (e.g. .pdf for a PDF file, .jpg for a JPEG).")]
-        //" You can use \"<date>\" and/or \"<time>\" to insert the date/time of the scan.")]
-        public string EmailFileName { get; set; }
-
-        [Option("subject", HelpText = "The email message's subject." +
-                                      //" You can use \"<date>\" and/or \"<time>\" to insert the date/time of the scan." +
-                                      " Requires -e/--email.")]
-        public string EmailSubject { get; set; }
-
-        [Option("body", HelpText = "The email message's body text." +
-                                   //" You can use \"<date>\" and/or \"<time>\" to insert the date/time of the scan." +
-                                   " Requires -e/--email.")]
-        public string EmailBody { get; set; }
-
-        [Option("to", HelpText = "A comma-separated list of email addresses of the recipients." +
-                                 " Requires -e/--email.")]
-        public string EmailTo { get; set; }
-
-        [Option("cc", HelpText = "A comma-separated list of email addresses of the recipients." +
-                                 " Requires -e/--email.")]
-        public string EmailCc { get; set; }
-
-        [Option("bcc", HelpText = "A comma-separated list of email addresses of the recipients." +
-                                  " Requires -e/--email.")]
-        public string EmailBcc { get; set; }
-
-        [Option("autosend", HelpText = "Actually send the email immediately after scanning completes without prompting the user for changes." +
-                                       " However, this may prompt the user to login. To avoid that, use --silentsend." +
-                                       " Note that Outlook may still require user interaction to send an email, regardless of --autosend or --silentsend options." +
-                                       " Requires -e/--email.")]
-        public bool EmailAutoSend { get; set; }
-
-        [Option("silentsend", HelpText = "Doesn't prompt the user to login when --autosend is specified." +
-                                         " This may result in failure if authentication is required." +
-                                         " Note that Outlook may still require user interaction to send an email, regardless of --autosend or --silentsend options." +
-                                         " Requires --autosend.")]
-        public bool EmailSilentSend { get; set; }
-
-        #endregion
-
         #region Image Options
 
         [Option("jpegquality", DefaultValue = 75, HelpText = "The quality of saved JPEG files (0-100, default 75).")]

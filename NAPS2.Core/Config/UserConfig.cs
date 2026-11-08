@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
-using NAPS2.ImportExport.Email;
 using NAPS2.ImportExport.Images;
 using NAPS2.ImportExport.Pdf;
 using NAPS2.Ocr;
@@ -51,10 +50,6 @@ namespace NAPS2.Config
         public PdfSettings PdfSettings { get; set; }
 
         public ImageSettings ImageSettings { get; set; }
-
-        public EmailSettings EmailSettings { get; set; }
-
-        public EmailSetup EmailSetup { get; set; }
 
         public int ThumbnailSize { get; set; } = ThumbnailRenderer.DEFAULT_SIZE;
 
