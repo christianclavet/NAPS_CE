@@ -269,7 +269,8 @@ namespace NAPS2.WinForms
                         txtName.Text = device.Name;
                     }
                     CurrentDevice = device;
-                    if (rdTWAIN.Checked) 
+                    driver.ScanDevice = device;
+                    if (rdTWAIN.Checked || rdWIA.Checked) 
                     {
                         var twainImpl = ScanProfile?.TwainImpl ?? TwainImpl.Default;
 

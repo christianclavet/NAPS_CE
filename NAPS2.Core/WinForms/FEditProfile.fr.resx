@@ -79,7 +79,7 @@
     <value>* Here are the detected Capabilities</value>
   </data>
   <data name="lab_Cap.Text" xml:space="preserve">
-    <value>Detected Capabilities (Twain)</value>
+    <value>Detected Capabilities</value>
   </data>
   <data name="cmbAutoRotation.Items" xml:space="preserve">
     <value>Enabled</value>

@@ -35,10 +35,10 @@ namespace NAPS2.Scan.Twain
             {
                 using (var worker = workerServiceFactory.Create())
                 {
-                    return worker.Service.TwainGetCapabilities(twainImpl,ScanProfile.Device);
+                    return worker.Service.TwainGetCapabilities(twainImpl, ScanDevice ?? ScanProfile.Device);
                 }
             }
-            return "Not supported directly";
+            return twainWrapper.GetCaps(twainImpl, ScanDevice ?? ScanProfile.Device);
 
         }
 

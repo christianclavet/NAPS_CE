@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
+using NAPS2.Logging;
 using NAPS2.Operation;
 using NAPS2.Platform;
 using NAPS2.Scan.Exceptions;
@@ -30,7 +32,57 @@ namespace NAPS2.Scan.Wia
 
         public override string ReturnCaps()
         {
-            throw new NotImplementedException();
+            if (ScanDevice == null)
+            {
+                return "No WIA device selected";
+            }
+            try
+            {
+                using (var deviceManager = new WiaDeviceManager(ScanProfile.WiaVersion))
+                using (var device = deviceManager.FindDevice(ScanDevice.ID))
+                {
+                    var sb = new StringBuilder();
+                    sb.AppendLine("Name:  " + ScanDevice.Name);
+                    sb.AppendLine();
+                    sb.AppendLine("CURRENT CAPABILITIES:");
+                    AppendProperties(sb, device.Properties);
+                    return sb.ToString();
+                }
+            }
+            catch (Exception e)
+            {
+                Log.ErrorException("Error reading WIA capabilities", e);
+                return "Unable to read WIA capabilities: " + e.Message;
+            }
+        }
+
+        private static void AppendProperties(StringBuilder sb, WiaPropertyCollection properties)
+        {
+            foreach (var prop in properties.OrderBy(x => x.Name))
+            {
+                // WiaProperty.Value only supports I4 and BSTR properties
+                if (prop.Type != WiaPropertyType.I4 && prop.Type != WiaPropertyType.BSTR)
+                {
+                    continue;
+                }
+                try
+                {
+                    sb.AppendLine(prop.Name + ": " + prop.Value);
+                    var attributes = prop.Attributes;
+                    if (attributes.Flags.HasFlag(WiaPropertyFlags.Range))
+                    {
+                        sb.AppendLine("    Range: " + attributes.Min + " to " + attributes.Max + " (step " + attributes.Step + ")");
+                    }
+                    else if (attributes.Flags.HasFlag(WiaPropertyFlags.List) && attributes.Values != null)
+                    {
+                        sb.AppendLine("    Choices: " + string.Join(", ", attributes.Values));
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log.ErrorException("Error reading WIA property " + prop.Name, e);
+                }
+            }
         }
 
         public override bool IsSupported => PlatformCompat.System.IsWiaDriverSupported;

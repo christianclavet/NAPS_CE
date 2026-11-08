@@ -1360,7 +1360,7 @@
     <value>35</value>
   </data>
   <data name="lab_Cap.Text" xml:space="preserve">
-    <value>Detected Capabilities (Twain)</value>
+    <value>Detected Capabilities</value>
   </data>
   <data name="&gt;&gt;lab_Cap.Name" xml:space="preserve">
     <value>lab_Cap</value>

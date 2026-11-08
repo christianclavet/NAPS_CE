@@ -104,32 +104,40 @@ namespace NAPS2.Scan.Twain
             var windowHandle = (Invoker.Current as Form)?.Handle;
             ReturnCode rc = windowHandle != null ? session.Open(new WindowsFormsMessageLoopHook(windowHandle.Value)) : session.Open();
 
-            DataSource ds = session.FirstOrDefault(x => x.Name == device.ID);
-            //DataSource ds = session.FirstOrDefault();
-                        
             try
             {
-                string caps = "Nothing";
+                if (rc != ReturnCode.Success)
+                {
+                    return "Unable to open TWAIN session: " + rc;
+                }
+                DataSource ds = device == null ? null : session.FirstOrDefault(x => x.Name == device.ID);
+                string caps = "No TWAIN source found for device: " + (device == null ? "(none)" : device.ID);
                 if (ds != null)
                 { 
                     ds.Open();
-                    caps = "Brand: "+ds.Manufacturer.ToString() + "\nName:  " + ds.Name + "\nProduct Family:  " + ds.ProductFamily +"\n\nCURRENT CAPABILITIES:\n";
-                    IEnumerable<CapabilityId> support = ds.Capabilities.CapSupportedCaps.GetValues();
-                    foreach (var result2 in support)
+                    try
                     {
-                        CapabilityId re = result2.ConvertToEnum<CapabilityId>();
-                        if ((CapabilityId)re != CapabilityId.None)
+                        caps = "Brand: "+ds.Manufacturer.ToString() + "\nName:  " + ds.Name + "\nProduct Family:  " + ds.ProductFamily +"\n\nCURRENT CAPABILITIES:\n";
+                        IEnumerable<CapabilityId> support = ds.Capabilities.CapSupportedCaps.GetValues();
+                        foreach (var result2 in support)
                         {
-                            string val = "";
-                            if (ds.Capabilities.GetCurrent(re)!=null)
+                            CapabilityId re = result2.ConvertToEnum<CapabilityId>();
+                            if ((CapabilityId)re != CapabilityId.None)
                             {
-                                val = ds.Capabilities.GetCurrent(re).ToString();
-                                caps += result2.ToString() + "\n" + val + "\n\n";  
+                                string val = "";
+                                if (ds.Capabilities.GetCurrent(re)!=null)
+                                {
+                                    val = ds.Capabilities.GetCurrent(re).ToString();
+                                    caps += result2.ToString() + "\n" + val + "\n\n";  
+                                }
+                            
                             }
-                        
                         }
                     }
-                    ds.Close();
+                    finally
+                    {
+                        ds.Close();
+                    }
                 }
                 
                 return caps;
