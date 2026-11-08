@@ -11,6 +11,13 @@ using NAPS2.Scan.Images;
 
 namespace NAPS2.Config
 {
+    public class PinnedServer
+    {
+        public string Address { get; set; }
+
+        public string Thumbprint { get; set; }
+    }
+
     public class UserConfig
     {
         public const int CURRENT_VERSION = 2;
@@ -67,8 +74,9 @@ namespace NAPS2.Config
 
         public List<ScanProxyConfig> SavedProxies { get; set; } = new List<ScanProxyConfig>();
 
-        // Certificate thumbprints of scanning servers this application has already trusted, keyed by "ip:port"
-        public Dictionary<string, string> PinnedServerThumbprints { get; set; } = new Dictionary<string, string>();
+        // Certificate thumbprints of scanning servers this application has already trusted.
+        // A list is used because XmlSerializer cannot serialize a Dictionary.
+        public List<PinnedServer> PinnedServers { get; set; } = new List<PinnedServer>();
 
         public string project { get; set; }
 

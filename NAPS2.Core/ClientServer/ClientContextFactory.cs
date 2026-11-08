@@ -1,6 +1,7 @@
 using System;
 using System.IdentityModel.Selectors;
 using System.IdentityModel.Tokens;
+using System.Linq;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.ServiceModel;
@@ -78,16 +79,17 @@ namespace NAPS2.ClientServer
                 }
                 string thumbprint = certificate.Thumbprint;
                 var config = userConfigManager.Config;
-                if (!config.PinnedServerThumbprints.TryGetValue(key, out var pinned))
+                var entry = config.PinnedServers.FirstOrDefault(x => x.Address == key);
+                if (entry == null)
                 {
-                    config.PinnedServerThumbprints[key] = thumbprint;
+                    config.PinnedServers.Add(new PinnedServer { Address = key, Thumbprint = thumbprint });
                     userConfigManager.Save();
                     Log.Error("Trusted new scanning server {0} with certificate {1}", key, thumbprint);
                     return;
                 }
-                if (!string.Equals(pinned, thumbprint, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(entry.Thumbprint, thumbprint, StringComparison.OrdinalIgnoreCase))
                 {
-                    Log.Error("Scanning server certificate changed for {0}: expected {1}, got {2}", key, pinned, thumbprint);
+                    Log.Error("Scanning server certificate changed for {0}: expected {1}, got {2}", key, entry.Thumbprint, thumbprint);
                     throw new SecurityTokenValidationException("The scanning server certificate has changed. Connection refused.");
                 }
             }
