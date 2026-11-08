@@ -1,9 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+using System;
+using System.IdentityModel.Selectors;
+using System.IdentityModel.Tokens;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.ServiceModel;
+using System.ServiceModel.Security;
 using NAPS2.Config;
 using NAPS2.Logging;
 using NAPS2.Scan;
@@ -36,10 +37,14 @@ namespace NAPS2.ClientServer
                 Security = { Mode = SecurityMode.Transport, Transport = { ClientCredentialType = TcpClientCredentialType.None } }
             };
             var channelFactory = new DuplexChannelFactory<IScanService>(instanceContext, binding, new EndpointAddress(uri));
+            channelFactory.Credentials.ServiceCertificate.SslCertificateAuthentication = new X509ServiceCertificateAuthentication
+            {
+                CertificateValidationMode = X509CertificateValidationMode.Custom,
+                CustomCertificateValidator = new PinningValidator(userConfigManager, key)
+            };
             var channel = channelFactory.CreateChannel();
             try
             {
-                VerifyPinnedCertificate(channel, key);
                 channel.Hello(ClientIdentity.Name, ClientIdentity.Version);
             }
             catch
@@ -54,34 +59,38 @@ namespace NAPS2.ClientServer
         /// Trust on first use: the server certificate thumbprint is saved on the first connection,
         /// and any later change is refused (possible impersonation of the server).
         /// </summary>
-        private void VerifyPinnedCertificate(IScanService channel, string key)
+        private class PinningValidator : X509CertificateValidator
         {
-            var thumbprint = GetServerThumbprint(channel);
-            if (thumbprint == null)
-            {
-                throw new InvalidOperationException("The scanning server did not present a certificate.");
-            }
-            var config = userConfigManager.Config;
-            if (!config.PinnedServerThumbprints.TryGetValue(key, out var pinned))
-            {
-                config.PinnedServerThumbprints[key] = thumbprint;
-                userConfigManager.Save();
-                Log.Error("Trusted new scanning server {0} with certificate {1}", key, thumbprint);
-                return;
-            }
-            if (!string.Equals(pinned, thumbprint, StringComparison.OrdinalIgnoreCase))
-            {
-                Log.Error("Scanning server certificate changed for {0}: expected {1}, got {2}", key, pinned, thumbprint);
-                throw new InvalidOperationException("The scanning server certificate has changed. Connection refused.");
-            }
-        }
+            private readonly IUserConfigManager userConfigManager;
+            private readonly string key;
 
-        private static string GetServerThumbprint(IScanService channel)
-        {
-            // The certificate the server presented on the TLS connection
-            // NOT IMPLEMENTED YET: reading the presented certificate requires a validation callback
-            // (see the note in the pinning section). Returning null makes the connection fail closed.
-            return null;
+            public PinningValidator(IUserConfigManager userConfigManager, string key)
+            {
+                this.userConfigManager = userConfigManager;
+                this.key = key;
+            }
+
+            public override void Validate(X509Certificate2 certificate)
+            {
+                if (certificate == null)
+                {
+                    throw new SecurityTokenValidationException("The scanning server did not present a certificate.");
+                }
+                string thumbprint = certificate.Thumbprint;
+                var config = userConfigManager.Config;
+                if (!config.PinnedServerThumbprints.TryGetValue(key, out var pinned))
+                {
+                    config.PinnedServerThumbprints[key] = thumbprint;
+                    userConfigManager.Save();
+                    Log.Error("Trusted new scanning server {0} with certificate {1}", key, thumbprint);
+                    return;
+                }
+                if (!string.Equals(pinned, thumbprint, StringComparison.OrdinalIgnoreCase))
+                {
+                    Log.Error("Scanning server certificate changed for {0}: expected {1}, got {2}", key, pinned, thumbprint);
+                    throw new SecurityTokenValidationException("The scanning server certificate has changed. Connection refused.");
+                }
+            }
         }
     }
 }
