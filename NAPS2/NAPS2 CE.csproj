@@ -306,6 +306,14 @@
   </Target>
   -->
   <Import Project="..\NAPS2\Setup\CommonTargets.targets" />
+  <!-- OCR (Tesseract 4.0.0b4, English/French/Spanish) and Ghostscript are versioned in NAPS2\components.
+       Copy them next to the executable so every build contains them, with no download at runtime. -->
+  <Target Name="CopyBundledComponents" AfterTargets="Build">
+    <ItemGroup>
+      <BundledComponentFiles Include="$(ProjectDir)components\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(BundledComponentFiles)" DestinationFiles="@(BundledComponentFiles->'$(OutDir)components\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
   <PropertyGroup>
     <PostBuildEvent>
       call "$(MSBuildBinPath)\..\..\..\..\VC\Auxiliary\Build\vcvars32.bat" x86

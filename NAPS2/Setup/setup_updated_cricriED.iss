@@ -114,11 +114,10 @@ Source: "..\components\tesseract-4.0.0b4\w64\vcomp140.dll"; DestDir: "{app}\comp
 Source: "..\components\tesseract-4.0.0b4\best\eng.traineddata"; DestDir: "{app}\components\tesseract-4.0.0b4\best"; Flags: ignoreversion
 Source: "..\components\tesseract-4.0.0b4\best\fra.traineddata"; DestDir: "{app}\components\tesseract-4.0.0b4\best"; Flags: ignoreversion
 Source: "..\components\tesseract-4.0.0b4\best\spa.traineddata"; DestDir: "{app}\components\tesseract-4.0.0b4\best"; Flags: ignoreversion
-Source: "..\components\tesseract-4.0.0b4\best\configs\hocr"; DestDir: "{app}\components\tesseract-4.0.0b4\best\config"; Flags: ignoreversion
-Source: "..\components\tesseract-4.0.0b4\best\config\hocr"; DestDir: "{app}\components\tesseract-4.0.0b4\best\config"; Flags: ignoreversion
+Source: "..\components\tesseract-4.0.0b4\best\configs\hocr"; DestDir: "{app}\components\tesseract-4.0.0b4\best\configs"; Flags: ignoreversion
 Source: "..\components\tesseract-4.0.0b4\fast\eng.traineddata"; DestDir: "{app}\components\tesseract-4.0.0b4\fast"; Flags: ignoreversion
 Source: "..\components\tesseract-4.0.0b4\fast\fra.traineddata"; DestDir: "{app}\components\tesseract-4.0.0b4\fast"; Flags: ignoreversion
-Source: "..\components\tesseract-4.0.0b4\fast\spa.traineddata"; DestDir: "{app}\components\tesseract-4.0.0b4\best"; Flags: ignoreversion
+Source: "..\components\tesseract-4.0.0b4\fast\spa.traineddata"; DestDir: "{app}\components\tesseract-4.0.0b4\fast"; Flags: ignoreversion
 
 Source: "lib\64\twaindsm.dll"; DestDir: "{app}\lib\64"; Flags: ignoreversion
 Source: "lib\twaindsm.dll"; DestDir: "{sys}"; Flags: sharedfile
