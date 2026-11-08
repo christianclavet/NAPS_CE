@@ -11,6 +11,9 @@ namespace NAPS2.ClientServer
     public interface IScanService
     {
         [OperationContract]
+        void Hello(string clientName, string clientVersion);
+
+        [OperationContract]
         List<string> GetSupportedDriverNames();
 
         [OperationContract]

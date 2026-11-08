@@ -30,6 +30,11 @@ namespace NAPS2.ClientServer
             this.scanPerformer = scanPerformer;
         }
 
+        public void Hello(string clientName, string clientVersion)
+        {
+            ServerAudit.LogClientConnection(clientName, clientVersion);
+        }
+
         public List<string> GetSupportedDriverNames()
         {
             var driverNames = new List<string>();

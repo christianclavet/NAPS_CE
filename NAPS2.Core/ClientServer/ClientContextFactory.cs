@@ -22,6 +22,7 @@ namespace NAPS2.ClientServer
                 },
                 new EndpointAddress(uri));
             var channel = channelFactory.CreateChannel();
+            channel.Hello(ClientIdentity.Name, ClientIdentity.Version);
             return new ClientContext { Service = channel, Callback = callback };
         }
     }
