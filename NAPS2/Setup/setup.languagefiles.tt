@@ -16,7 +16,7 @@
     foreach(var folder in outputDir.EnumerateDirectories()) {
         var langName = folder.Name;
 #>
-Source: "..\bin\InstallerEXE\\<#= langName #>\NAPS2.Core.resources.dll"; DestDir: "{app}\\lib\\<#= langName #>"; Flags: ignoreversion
+Source: "..\..\NAPS2.Core\bin\InstallerEXE\\<#= langName #>\NAPS2.Core.resources.dll"; DestDir: "{app}\\lib\\<#= langName #>"; Flags: ignoreversion
 <#
     }
 #>

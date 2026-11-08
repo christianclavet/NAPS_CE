@@ -62,38 +62,38 @@ Name: "{app}\"; Permissions: users-modify;
 
 [Files]                              
 #include "setup.languagefiles.iss"                                                          
-Source: "..\bin\InstallerEXE\NAPS2 CriCri Edition.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\NAPS2 CriCri Edition.exe.config"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\NAPS2.Core.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\PDFiumSharp.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\pdfium_x86.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\pdfium_x64.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\NAPS2.DI.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\CommandLine.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\ICSharpCode.SharpZipLib.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\Newtonsoft.Json.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\Ninject.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\NLog.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\NTwain.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\PdfSharp.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\CsvHelper.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\NAPS2 CriCri Edition.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\NAPS2 CriCri Edition.exe.config"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\NAPS2.Core.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\PDFiumSharp.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\pdfium_x86.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\pdfium_x64.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\NAPS2.DI.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\CommandLine.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\ICSharpCode.SharpZipLib.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\Newtonsoft.Json.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\Ninject.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\NLog.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\NTwain.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\PdfSharp.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\CsvHelper.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 ; Microsoft
-Source: "..\bin\InstallerEXE\Microsoft.Bcl.AsyncInterfaces.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\Microsoft.Bcl.HashCode.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\System.Buffers.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\System.Memory.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\System.Numerics.Vectors.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\System.Runtime.CompilerServices.Unsafe.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\System.Threading.Tasks.Extensions.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\Microsoft.Bcl.AsyncInterfaces.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\Microsoft.Bcl.HashCode.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\System.Buffers.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\System.Memory.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\System.Numerics.Vectors.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\System.Runtime.CompilerServices.Unsafe.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\System.Threading.Tasks.Extensions.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 ; Magick library
-Source: "..\bin\InstallerEXE\Magick.Native-Q8-x64.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\Magick.Native-Q8-x86.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\Magick.NET.Core.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\Magick.NET.SystemDrawing.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\Magick.NET-Q8-AnyCPU.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\Magick.Native-Q8-x64.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\Magick.Native-Q8-x86.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\Magick.NET.Core.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\Magick.NET.SystemDrawing.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\Magick.NET-Q8-AnyCPU.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 ;ZXing library
-Source: "..\bin\InstallerEXE\zxing.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\zxing.presentation.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\zxing.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\x64\InstallerEXE\zxing.presentation.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 
 Source: "..\appsettings.xml"; DestDir: "{app}"; 
 Source: "..\projectConfigs.xml"; DestDir: "{app}"; Flags: onlyifdoesntexist
