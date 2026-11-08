@@ -1416,7 +1416,7 @@ namespace NAPS2.WinForms
             };
             if (ofd.ShowDialog() == DialogResult.OK)
             {
-                ImportFiles(ofd.FileNames);
+                ImportFilesAfterSelection(ofd.FileNames);
             }
         }
 
@@ -1431,6 +1431,29 @@ namespace NAPS2.WinForms
             }
             thumbnailList1.GroupRefresh(imageList.Images);
             
+        }
+
+        // Without a selection, imported files are appended to the end.
+        // With a selection, they are inserted right after the last selected image instead of replacing it.
+        private void ImportFilesAfterSelection(IEnumerable<string> files)
+        {
+            var selected = SelectedIndices.ToList();
+            if (!selected.Any())
+            {
+                ImportFiles(files);
+                return;
+            }
+
+            int nextIndex = selected.Max() + 1;
+            var op = operationFactory.Create<ImportOperation>();
+            if (op.Start(OrderFiles(files), img =>
+            {
+                int index = nextIndex++;
+                BeginInvoke((Action)(() => InsertImageAt(img, index)));
+            }))
+            {
+                operationProgress.ShowProgress(op);
+            }
         }
 
         private List<string> OrderFiles(IEnumerable<string> files)
