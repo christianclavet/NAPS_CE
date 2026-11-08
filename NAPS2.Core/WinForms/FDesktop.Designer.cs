@@ -54,6 +54,7 @@ namespace NAPS2.WinForms
             this.ctxSelectAll = new System.Windows.Forms.ToolStripMenuItem();
             this.ctxCopy = new System.Windows.Forms.ToolStripMenuItem();
             this.ctxPaste = new System.Windows.Forms.ToolStripMenuItem();
+            this.ctxPasteAfter = new System.Windows.Forms.ToolStripMenuItem();
             this.ctxSeparator2 = new System.Windows.Forms.ToolStripSeparator();
             this.ctxDelete = new System.Windows.Forms.ToolStripMenuItem();
             this.tiffViewerCtl1 = new NAPS2.WinForms.TiffViewerCtl();
@@ -361,6 +362,7 @@ namespace NAPS2.WinForms
             this.ctxSelectAll,
             this.ctxCopy,
             this.ctxPaste,
+            this.ctxPasteAfter,
             this.ctxSeparator2,
             this.ctxDelete});
             this.contextMenuStrip.Name = "contextMenuStrip";
@@ -412,6 +414,12 @@ namespace NAPS2.WinForms
             this.ctxPaste.Name = "ctxPaste";
             resources.ApplyResources(this.ctxPaste, "ctxPaste");
             this.ctxPaste.Click += new System.EventHandler(this.ctxPaste_Click);
+            // 
+            // ctxPasteAfter
+            // 
+            this.ctxPasteAfter.Name = "ctxPasteAfter";
+            resources.ApplyResources(this.ctxPasteAfter, "ctxPasteAfter");
+            this.ctxPasteAfter.Click += new System.EventHandler(this.ctxPasteAfter_Click);
             // 
             // ctxSeparator2
             // 
@@ -1164,6 +1172,7 @@ namespace NAPS2.WinForms
         private System.Windows.Forms.ToolStripSeparator ctxSeparator2;
         private System.Windows.Forms.ToolStripMenuItem ctxDelete;
         private System.Windows.Forms.ToolStripMenuItem ctxPaste;
+        private System.Windows.Forms.ToolStripMenuItem ctxPasteAfter;
         private System.Windows.Forms.StatusStrip statusStrip1;
         private System.Windows.Forms.ToolStripStatusLabel StatusText;
         private System.Windows.Forms.ToolStrip tStrip;

@@ -402,6 +402,12 @@
   <data name="ctxPaste.Text" xml:space="preserve">
     <value>Paste</value>
   </data>
+  <data name="ctxPasteAfter.Size" type="System.Drawing.Size, System.Drawing">
+    <value>229, 32</value>
+  </data>
+  <data name="ctxPasteAfter.Text" xml:space="preserve">
+    <value>Coller après cette image</value>
+  </data>
   <data name="ctxSeparator2.Size" type="System.Drawing.Size, System.Drawing">
     <value>226, 6</value>
   </data>
@@ -2086,6 +2092,12 @@
     <value>ctxPaste</value>
   </data>
   <data name="&gt;&gt;ctxPaste.Type" xml:space="preserve">
+    <value>System.Windows.Forms.ToolStripMenuItem, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="&gt;&gt;ctxPasteAfter.Name" xml:space="preserve">
+    <value>ctxPasteAfter</value>
+  </data>
+  <data name="&gt;&gt;ctxPasteAfter.Type" xml:space="preserve">
     <value>System.Windows.Forms.ToolStripMenuItem, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
   <data name="&gt;&gt;ctxSeparator2.Name" xml:space="preserve">

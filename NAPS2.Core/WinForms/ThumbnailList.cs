@@ -73,6 +73,29 @@ namespace NAPS2.WinForms
             InsertionMark.Index = -1;
         }
 
+        private const int WM_RBUTTONDOWN = 0x0204;
+
+        // The native ListView selects the item under the cursor on right-button down.
+        // The message is still passed on so the context menu opens, but the previous selection is restored afterwards.
+        protected override void WndProc(ref System.Windows.Forms.Message m)
+        {
+            if (m.Msg == WM_RBUTTONDOWN)
+            {
+                var previousSelection = SelectedIndices.Cast<int>().ToList();
+                base.WndProc(ref m);
+                if (!SelectedIndices.Cast<int>().SequenceEqual(previousSelection))
+                {
+                    SelectedIndices.Clear();
+                    foreach (int index in previousSelection)
+                    {
+                        SelectedIndices.Add(index);
+                    }
+                }
+                return;
+            }
+            base.WndProc(ref m);
+        }
+
         public ThumbnailRenderer ThumbnailRenderer { get; set; }
 
         public Size ThumbnailSize

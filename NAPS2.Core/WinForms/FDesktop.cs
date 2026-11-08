@@ -90,6 +90,7 @@ namespace NAPS2.WinForms
         private bool splitter1 = false; // Used for the splitter GUI state of display
         private bool insert = false; //Used to determine if the scanning will insert images or append them a the end
         private int insertCounter = 0; //Used to count the offset of images to insert
+        private DirectImageTransfer copiedImages; // Last images copied from the thumbnail list, used by "Paste after this image"
         private string title = System.Windows.Forms.Application.ProductName.ToString() + " " + System.Windows.Forms.Application.ProductVersion.ToString();
         private Size Oldsize = Size.Empty;
 
@@ -2364,6 +2365,10 @@ namespace NAPS2.WinForms
                 ctxPaste.Enabled = false;
             }
             
+            // Always visible. The click handler checks the selection and the copied images, and shows a message if needed.
+            ctxPasteAfter.Visible = true;
+            ctxPasteAfter.Enabled = true;
+
             /*if (!imageList.Images.Any() && !ctxPaste.Enabled)
             {
                 e.Cancel = true;
@@ -2395,6 +2400,11 @@ namespace NAPS2.WinForms
             PasteImages();
         }
 
+        private void ctxPasteAfter_Click(object sender, EventArgs e)
+        {
+            PasteImagesAfterSelection();
+        }
+
         private void ctxDelete_Click(object sender, EventArgs e)
         {
             Delete();
@@ -2408,6 +2418,7 @@ namespace NAPS2.WinForms
         {
             if (SelectedIndices.Any())
             {
+                copiedImages = new DirectImageTransfer(SelectedImages);
                 // TODO: Make copy an operation
                 var ido = await GetDataObjectForImages(SelectedImages, true);
                 Clipboard.SetDataObject(ido);
@@ -2451,6 +2462,52 @@ namespace NAPS2.WinForms
                 var data = (DirectImageTransfer)ido.GetData(typeof(DirectImageTransfer).FullName);
                 ImportDirect(data, true);
             }
+        }
+
+        private void PasteImagesAfterSelection()
+        {
+            if (SelectedIndices.Count() != 1)
+            {
+                MessageBox.Show("Sélectionnez une seule image, puis choisissez « Coller après cette image ».",
+                    title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (copiedImages == null || copiedImages.ImageRecovery.Length == 0)
+            {
+                MessageBox.Show("Aucune image copiée. Copiez d'abord une ou plusieurs images.",
+                    title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Insert right after the selected image. Copied images are inserted one after another from that point.
+            int nextIndex = SelectedIndices.First() + 1;
+            var op = operationFactory.Create<DirectImportOperation>();
+            if (op.Start(copiedImages, true, img =>
+            {
+                int index = nextIndex++;
+                BeginInvoke((Action)(() => InsertImageAt(img, index)));
+            }))
+            {
+                operationProgress.ShowProgress(op);
+            }
+        }
+
+        // Runs on the UI thread. Inserts one image into the list at the given index.
+        private void InsertImageAt(ScannedImage img, int index)
+        {
+            lock (imageList)
+            {
+                index = Math.Min(index, imageList.Images.Count);
+                imageList.Images.Insert(index, img);
+                img.MovedTo(index);
+                img.ThumbnailChanged += ImageThumbnailChanged;
+                img.ThumbnailInvalidated += ImageThumbnailInvalidated;
+            }
+            Task.Run(() => AddThumbnails());
+            UpdateToolbar();
+            changeTracker.Made();
+            renderThumbnailsWaitHandle.Set();
         }
 
         private bool CanPaste
