@@ -48,9 +48,18 @@ namespace NAPS2.ClientServer
             {
                 channel.Hello(ClientIdentity.Name, ClientIdentity.Version);
             }
-            catch
+            catch (Exception ex)
             {
-                ((IDisposable)channel).Dispose();
+                // Log the real error first; closing a faulted channel can throw and hide it
+                Log.ErrorException($"Could not connect to scanning server {key}", ex);
+                try
+                {
+                    ((IDisposable)channel).Dispose();
+                }
+                catch (Exception)
+                {
+                    channelFactory.Abort();
+                }
                 throw;
             }
             return new ClientContext { Service = channel, Callback = callback };

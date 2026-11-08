@@ -37,6 +37,12 @@ namespace NAPS2.DI.EntryPoints
                 Application.SetCompatibleTextRenderingDefault(false);
                 Application.ThreadException += UnhandledException;
                 TaskScheduler.UnobservedTaskException += UnhandledTaskException;
+                // Catches exceptions on any other thread, which would otherwise close the process silently
+                AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
+                {
+                    Log.Error("Unhandled exception on thread (terminating={0}): {1}", e.IsTerminating, e.ExceptionObject);
+                };
+                Log.Error("Scanning server starting (version {0})", System.Reflection.Assembly.GetExecutingAssembly().GetName().Version);
 
                 // Set up a form for the server process
                 var form = new BackgroundForm();

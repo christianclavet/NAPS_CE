@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using NAPS2.Logging;
 using NAPS2.Util;
 
 namespace NAPS2.ClientServer
@@ -18,8 +19,19 @@ namespace NAPS2.ClientServer
 
         public static void ListenForBroadcast(int serverPort)
         {
+            // Discovery is optional: if it cannot run (e.g. port already in use), the scanning
+            // service must keep working, so failures are logged instead of stopping the process.
+            UdpClient udpClient;
+            try
+            {
+                udpClient = new UdpClient(DISCOVERY_PORT) { Client = { ReceiveTimeout = 0 } };
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorException($"Server discovery could not listen on UDP port {DISCOVERY_PORT}", ex);
+                return;
+            }
             var fallback = new ExpFallback(100, 60 * 1000);
-            var udpClient = new UdpClient(DISCOVERY_PORT) { Client = { ReceiveTimeout = 0 } };
             IPEndPoint remoteEndpoint = null;
             while (true)
             {
@@ -35,8 +47,15 @@ namespace NAPS2.ClientServer
                         udpClient.Send(responseBytes, responseBytes.Length, remoteEndpoint);
                     }
                 }
-                catch (SocketException)
+                catch (SocketException ex)
                 {
+                    Log.ErrorException("Server discovery socket error", ex);
+                    Thread.Sleep(fallback.Value);
+                    fallback.Increase();
+                }
+                catch (Exception ex)
+                {
+                    Log.ErrorException("Server discovery error", ex);
                     Thread.Sleep(fallback.Value);
                     fallback.Increase();
                 }
