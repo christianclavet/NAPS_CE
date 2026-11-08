@@ -66,9 +66,11 @@ Name: "{app}\"; Permissions: users-modify;
 Source: "..\bin\InstallerEXE\NAPS2 CriCri Edition.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\NAPS2 CriCri Edition.exe.config"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\NAPS2.Core.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\InstallerEXE\PDFiumSharp.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\InstallerEXE\pdfium_x86.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\bin\InstallerEXE\pdfium_x64.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\NAPS2.DI.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\CommandLine.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
-Source: "..\bin\InstallerEXE\Ghostscript.NET.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\ICSharpCode.SharpZipLib.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\MimeKit.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
 Source: "..\bin\InstallerEXE\Newtonsoft.Json.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
@@ -108,8 +110,6 @@ Source: "..\..\NAPS2.Worker\bin\InstallerEXE\NAPS2.Worker.exe.config"; DestDir: 
 
 
 ; NEW Preinstall components. 
-Source: "..\components\gs-9.21\gsdll32.dll"; DestDir: "{app}\components\gs-9.21"; Flags: ignoreversion
-Source: "..\components\gs-9.21\gsdll64.dll"; DestDir: "{app}\components\gs-9.21"; Flags: ignoreversion
 
 Source: "..\components\tesseract-4.0.0b4\w64\tesseract.exe"; DestDir: "{app}\components\tesseract-4.0.0b4\w64"; Flags: ignoreversion
 Source: "..\components\tesseract-4.0.0b4\w64\vcomp140.dll"; DestDir: "{app}\components\tesseract-4.0.0b4\w64"; Flags: ignoreversion
