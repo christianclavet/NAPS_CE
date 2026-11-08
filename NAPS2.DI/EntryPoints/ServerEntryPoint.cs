@@ -62,7 +62,10 @@ namespace NAPS2.DI.EntryPoints
                 // Listen for requests
                 using (var host = new ServiceHost(typeof(ScanService)))
                 {
-                    var serverIcon = new ServerNotifyIcon(port, () => form.Close());
+                    var profileDialog = kernel.Get<ServerProfileDialog>();
+                    var serverIcon = new ServerNotifyIcon(port,
+                        () => profileDialog.Show(form),
+                        () => form.Close());
                     host.Opened += (sender, eventArgs) => serverIcon.Show();
                     host.Description.Behaviors.Add(new ServiceFactoryBehavior(() => kernel.Get<ScanService>()));
                     // Encrypted transport. The certificate is created on first run (see ServerCertificate).

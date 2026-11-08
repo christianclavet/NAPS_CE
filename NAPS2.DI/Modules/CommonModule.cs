@@ -57,6 +57,7 @@ namespace NAPS2.DI.Modules
             // Config
             Bind<ProjectConfigManager>().ToSelf().InSingletonScope();
             Bind<IProfileManager>().To<ProfileManager>().InSingletonScope();
+            Bind<ServerProfileManager>().ToSelf().InSingletonScope();
             Bind<AppConfigManager>().ToSelf().InSingletonScope();
             Bind<IUserConfigManager>().To<UserConfigManager>().InSingletonScope();
             Bind<PdfSettingsContainer>().ToSelf().InSingletonScope();

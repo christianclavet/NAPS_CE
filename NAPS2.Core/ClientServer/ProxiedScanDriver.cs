@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using NAPS2.Logging;
 using NAPS2.Recovery;
 using NAPS2.Scan;
+using NAPS2.Scan.Exceptions;
 using NAPS2.Scan.Images;
 using NAPS2.Util;
 using NAPS2.WinForms;
@@ -21,13 +22,15 @@ namespace NAPS2.ClientServer
         private readonly ClientContextFactory clientContextFactory;
         private readonly ScannedImageHelper scannedImageHelper;
         private readonly IFormFactory formFactory;
+        private readonly IErrorOutput errorOutput;
 
-        public ProxiedScanDriver(ClientContextFactory clientContextFactory, IFormFactory formFactory, ScannedImageHelper scannedImageHelper)
+        public ProxiedScanDriver(ClientContextFactory clientContextFactory, IFormFactory formFactory, ScannedImageHelper scannedImageHelper, IErrorOutput errorOutput)
             : base(formFactory)
         {
             this.clientContextFactory = clientContextFactory;
             this.formFactory = formFactory;
             this.scannedImageHelper = scannedImageHelper;
+            this.errorOutput = errorOutput;
         }
 
         public override string DriverName => DRIVER_NAME;
@@ -52,7 +55,7 @@ namespace NAPS2.ClientServer
 
             using (var client = clientContextFactory.Create(ScanProfile.ProxyConfig))
             {
-                return client.Service.GetDeviceList(ScanProfile);
+                return client.Service.GetDeviceList();
             }
         }
 
@@ -100,7 +103,7 @@ namespace NAPS2.ClientServer
                             }
                         };
 
-                        var scanTask = client.Service.Scan(ScanProfile, ScanParams).ContinueWith(t =>
+                        var scanTask = client.Service.Scan(ScanParams).ContinueWith(t =>
                         {
                             for (int i = 0; i < t.Result; i++)
                             {
@@ -134,6 +137,9 @@ namespace NAPS2.ClientServer
                 catch (Exception e)
                 {
                     Log.ErrorException("Error scanning with proxy", e);
+                    // Surface the error to the user; an exception here would otherwise be lost in the unobserved task
+                    Invoker.Current.SafeInvoke(() => errorOutput.DisplayError("Erreur pendant la numérisation sur le serveur NAPS : " + e.Message, e));
+                    source.Error(new ScanDriverUnknownException(e));
                 }
             }, TaskCreationOptions.LongRunning).Unwrap();
         }

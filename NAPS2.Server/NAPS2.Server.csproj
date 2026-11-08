@@ -169,4 +169,12 @@
   </Target>
   -->
   <Import Project="..\NAPS2\Setup\CommonTargets.targets" />
+  <!-- The WIA native library is loaded from the "64" subfolder by NativeWiaMethods on 64-bit processes.
+       Copy it next to the server executable so the server can find it after every build. -->
+  <Target Name="CopyWiaNativeDll" AfterTargets="Build">
+    <ItemGroup>
+      <WiaNativeDll64 Include="$(MSBuildProjectDirectory)\..\NAPS2\Setup\lib\64\NAPS2.WIA.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(WiaNativeDll64)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="false" />
+  </Target>
 </Project>

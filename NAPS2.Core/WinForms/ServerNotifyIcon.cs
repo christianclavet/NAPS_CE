@@ -8,7 +8,7 @@ namespace NAPS2.WinForms
 {
     public class ServerNotifyIcon
     {
-        public ServerNotifyIcon(int port, Action close)
+        public ServerNotifyIcon(int port, Action configure, Action close)
         {
             NotifyIcon = new NotifyIcon
             {
@@ -22,6 +22,8 @@ namespace NAPS2.WinForms
                     Items =
                     {
                         new ToolStripLabel(string.Format(MiscResources.ListeningOnPort, port)) { Enabled = false },
+                        new ToolStripMenuItem("Configurer le numériseur...", null, (sender, args) => configure()),
+                        new ToolStripSeparator(),
                         new ToolStripMenuItem(MiscResources.Close, null, (sender, args) => close())
                     }
                 }

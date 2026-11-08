@@ -32,7 +32,8 @@ namespace NAPS2.ClientServer
             };
             config.AddTarget("serverauditfile", target);
             config.LoggingRules.Add(new LoggingRule("NAPS2.ServerAudit", LogLevel.Info, target));
-            var logFactory = new LogFactory(config);
+            var logFactory = new LogFactory();
+            logFactory.Configuration = config;
             return logFactory.GetLogger("NAPS2.ServerAudit");
         }
 

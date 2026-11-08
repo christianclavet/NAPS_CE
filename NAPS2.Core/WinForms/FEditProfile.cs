@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -31,6 +31,13 @@ namespace NAPS2.WinForms
         private bool isDefault;
         private bool useProxy;
 
+        /// <summary>
+        /// True when the form edits the server's own scanning profile (ServerProfileDialog).
+        /// The network-server choice is then hidden, because the server cannot be its own client.
+        /// </summary>
+        public bool IsServerConfig { get; set; }
+
+
         private int iconID;
         private bool result;
 
@@ -46,8 +53,8 @@ namespace NAPS2.WinForms
 
             InitializeComponent();
             btnNetwork.Left = btnChooseDevice.Right + 6;
-            // TODO: Remove this to reenable
-            btnNetwork.Visible = true;
+            // Server mode is hidden from the client interface for now
+            btnNetwork.Visible = false;
 
             AddEnumItems<ScanHorizontalAlign>(cmbAlign);
             AddEnumItems<ScanBitDepth>(cmbDepth);
@@ -63,6 +70,7 @@ namespace NAPS2.WinForms
             rdWIA.Visible = PlatformCompat.System.IsWiaDriverSupported;
             rdTWAIN.Visible = PlatformCompat.System.IsTwainDriverSupported;
             rdSANE.Visible = PlatformCompat.System.IsSaneDriverSupported;
+
         }
 
         protected override void OnLoad(object sender, EventArgs e)
@@ -385,6 +393,12 @@ namespace NAPS2.WinForms
                 errorOutput.DisplayError(MiscResources.NameMissing);
                 return;
             }
+            // SERVEUR NAPS needs a server address; otherwise the scan could never reach the server
+            if (useProxy && (ScanProfile.ProxyConfig == null || string.IsNullOrWhiteSpace(ScanProfile.ProxyConfig.Ip)))
+            {
+                errorOutput.DisplayError("Configurez l'adresse du serveur NAPS (bouton des paramètres réseau) avant d'enregistrer.");
+                return;
+            }
             result = true;
             SaveSettings();
             Close();
@@ -450,16 +464,20 @@ namespace NAPS2.WinForms
 
                 //ConditionalControls.UnlockHeight(this);
                 ConditionalControls.SetVisible(panelUI, canUseNativeUi, 20);
+
                 //ConditionalControls.LockHeight(this);
 
                 suppressChangeEvent = false;
             }
         }
 
+
         private void rdDriver_CheckedChanged(object sender, EventArgs e)
         {
             if (((RadioButton)sender).Checked && !suppressChangeEvent)
             {
+                // Choosing a local driver leaves the server mode
+                useProxy = false;
                 ScanProfile.Device = null;
                 CurrentDevice = null;
                 UpdateEnabledControls();

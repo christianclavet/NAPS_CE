@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using NAPS2.ClientServer;
 using NAPS2.Config;
 using NAPS2.ImportExport;
 using NAPS2.Lang.Resources;
@@ -199,7 +200,9 @@ namespace NAPS2.WinForms
 
         private void lvProfiles_ItemActivate(object sender, EventArgs e)
         {
-            if (SelectedProfile != null)
+            // A double-click on a network profile must not start a scan without an explicit
+            // "Scan" action; the user chooses the scan button for those profiles.
+            if (SelectedProfile != null && SelectedProfile.DriverName != ProxiedScanDriver.DRIVER_NAME)
             {
                 PerformScan();
             }

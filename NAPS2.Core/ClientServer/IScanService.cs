@@ -17,10 +17,13 @@ namespace NAPS2.ClientServer
         List<string> GetSupportedDriverNames();
 
         [OperationContract]
-        List<ScanDevice> GetDeviceList(ScanProfile scanProfile);
+        List<ScanDevice> GetDeviceList();
 
         [OperationContract]
-        Task<int> Scan(ScanProfile scanProfile, ScanParams scanParams);
+        ScanProfile GetServerProfile();
+
+        [OperationContract]
+        Task<int> Scan(ScanParams scanParams);
 
         [OperationContract(IsOneWay = true)]
         void CancelScan();

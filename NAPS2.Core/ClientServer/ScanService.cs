@@ -5,6 +5,8 @@ using System.Linq;
 using System.ServiceModel;
 using System.Threading;
 using System.Threading.Tasks;
+using NAPS2.Config;
+using NAPS2.Logging;
 using NAPS2.Platform;
 using NAPS2.Recovery;
 using NAPS2.Scan;
@@ -21,13 +23,15 @@ namespace NAPS2.ClientServer
     {
         private readonly IScanDriverFactory scanDriverFactory;
         private readonly IScanPerformer scanPerformer;
+        private readonly ServerProfileManager serverProfileManager;
 
         private CancellationTokenSource scanCts = new CancellationTokenSource();
 
-        public ScanService(IScanDriverFactory scanDriverFactory, IScanPerformer scanPerformer)
+        public ScanService(IScanDriverFactory scanDriverFactory, IScanPerformer scanPerformer, ServerProfileManager serverProfileManager)
         {
             this.scanDriverFactory = scanDriverFactory;
             this.scanPerformer = scanPerformer;
+            this.serverProfileManager = serverProfileManager;
         }
 
         public void Hello(string clientName, string clientVersion)
@@ -71,35 +75,54 @@ namespace NAPS2.ClientServer
             return driverNames;
         }
 
-        public List<ScanDevice> GetDeviceList(ScanProfile scanProfile)
+        public List<ScanDevice> GetDeviceList()
         {
             RequireLocalNetwork();
-            var profile = BuildServerProfile(scanProfile);
-            var driver = scanDriverFactory.Create(profile.DriverName);
-            driver.ScanProfile = profile;
-            return driver.GetDeviceList();
+            try
+            {
+                var profile = BuildServerProfile(serverProfileManager.Profile);
+                var driver = scanDriverFactory.Create(profile.DriverName);
+                driver.ScanProfile = profile;
+                return driver.GetDeviceList();
+            }
+            catch (Exception ex)
+            {
+                // The client only receives a generic fault, so the real cause must be logged here
+                Log.ErrorException("Server failed to list devices", ex);
+                throw;
+            }
         }
 
         /// <summary>
         /// Builds the profile used on the server. The client's driver choice is only honored
         /// if it is one of the drivers this server supports locally; otherwise the server default is used.
         /// </summary>
-        private ScanProfile BuildServerProfile(ScanProfile requested)
+        private ScanProfile BuildServerProfile(ScanProfile serverProfile)
         {
             var supported = GetSupportedDriverNames();
-            string driverName = supported.FirstOrDefault(x => x == requested?.DriverName)
+            string driverName = supported.FirstOrDefault(x => x == serverProfile?.DriverName)
                                 ?? supported.FirstOrDefault();
             if (driverName == null)
             {
                 throw new InvalidOperationException("No scanning driver is available on this server.");
             }
-            return ScanProfileSanitizer.Sanitize(requested, driverName);
+            return ScanProfileSanitizer.Sanitize(serverProfile, driverName);
         }
 
-        public async Task<int> Scan(ScanProfile scanProfile, ScanParams scanParams)
+        /// <summary>
+        /// Returns the server's scanning profile (read-only for the client). Only scanning
+        /// settings and the device/driver are included, never file or network settings.
+        /// </summary>
+        public ScanProfile GetServerProfile()
         {
             RequireLocalNetwork();
-            scanProfile = BuildServerProfile(scanProfile);
+            return BuildServerProfile(serverProfileManager.Profile);
+        }
+
+        public async Task<int> Scan(ScanParams scanParams)
+        {
+            RequireLocalNetwork();
+            var scanProfile = BuildServerProfile(serverProfileManager.Profile);
             if (scanProfile.TwainImpl == TwainImpl.Legacy)
             {
                 scanProfile.TwainImpl = TwainImpl.OldDsm;
@@ -140,6 +163,11 @@ namespace NAPS2.ClientServer
                     pages++;
                 }
             }, scanCts.Token);
+            Log.Error("Scanning server finished with {0} page(s)", pages);
+            if (pages == 0)
+            {
+                Log.Error("No page was produced on the server; check the scanning server screen for an error.");
+            }
             return pages;
         }
 

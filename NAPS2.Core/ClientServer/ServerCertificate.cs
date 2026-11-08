@@ -13,7 +13,12 @@ namespace NAPS2.ClientServer
     /// </summary>
     public static class ServerCertificate
     {
-        public const string SUBJECT = "CN=NAPS2 Scanning Server";
+        /// <summary>
+        /// The certificate common name, also used by clients as the expected DNS identity.
+        /// </summary>
+        public const string COMMON_NAME = "NAPS2 Scanning Server";
+
+        public const string SUBJECT = "CN=" + COMMON_NAME;
 
         /// <summary>
         /// Returns the server certificate, creating it if needed.

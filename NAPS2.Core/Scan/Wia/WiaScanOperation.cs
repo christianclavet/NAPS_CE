@@ -182,7 +182,8 @@ namespace NAPS2.Scan.Wia
             // WIA 2.0 doesn't support normal transfers with native UI.
             // Instead we need to have it write the scans to a set of files and load those.
 
-            var hwnd = Invoker.Current.InvokeGet(() => DialogParent.Handle);
+            // No parent window on the scanning server (headless), so use a zero handle
+            var hwnd = DialogParent == null ? IntPtr.Zero : Invoker.Current.InvokeGet(() => DialogParent.Handle);
             var paths = deviceManager.PromptForImage(hwnd, device);
 
             if (paths == null)
@@ -290,7 +291,8 @@ namespace NAPS2.Scan.Wia
         {
             if (ScanProfile.UseNativeUI)
             {
-                var hwnd = Invoker.Current.InvokeGet(() => DialogParent.Handle);
+                // No parent window on the scanning server (headless), so use a zero handle
+                var hwnd = DialogParent == null ? IntPtr.Zero : Invoker.Current.InvokeGet(() => DialogParent.Handle);
                 bool useWorker = Environment.Is64BitProcess && device.Version == WiaVersion.Wia10;
                 if (useWorker)
                 {

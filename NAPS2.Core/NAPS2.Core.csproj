@@ -167,6 +167,7 @@
     <Compile Include="ClientServer\ClientContextFactory.cs" />
     <Compile Include="ClientServer\ClientIdentity.cs" />
     <Compile Include="ClientServer\ServerAudit.cs" />
+    <Compile Include="ClientServer\ServerProfileDialog.cs" />
     <Compile Include="ClientServer\ScanProfileSanitizer.cs" />
     <Compile Include="ClientServer\ServerCertificate.cs" />
     <Compile Include="ClientServer\ServerAddressFilter.cs" />
@@ -386,6 +387,7 @@
     <Compile Include="Config\IProfileManager.cs" />
     <Compile Include="Config\IUserConfigManager.cs" />
     <Compile Include="Config\ProfileManager.cs" />
+    <Compile Include="Config\ServerProfileManager.cs" />
     <Compile Include="Config\UserConfig.cs" />
     <Compile Include="Config\UserConfigManager.cs" />
     <Compile Include="ImportExport\FileNamePlaceholders.cs" />

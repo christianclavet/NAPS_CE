@@ -55,7 +55,8 @@ namespace NAPS2.Scan
             driver.CancelToken = cancelToken;
             try
             {
-                if (scanProfile.Device == null)
+                // A network profile's device is chosen on the scanning server, never prompted on the client
+                if (scanProfile.Device == null && scanProfile.DriverName != NAPS2.ClientServer.ProxiedScanDriver.DRIVER_NAME)
                 {
                     // The profile has no device specified, so prompt the user to choose one
                     var device = driver.PromptForDevice();

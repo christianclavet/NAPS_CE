@@ -37,7 +37,10 @@ namespace NAPS2.ClientServer
                 MaxReceivedMessageSize = 64 * 1024 * 1024,
                 Security = { Mode = SecurityMode.Transport, Transport = { ClientCredentialType = TcpClientCredentialType.None } }
             };
-            var channelFactory = new DuplexChannelFactory<IScanService>(instanceContext, binding, new EndpointAddress(uri));
+            // The URI host is an IP address, but the certificate identifies the server by name,
+            // so the expected DNS identity must be given explicitly.
+            var endpoint = new EndpointAddress(uri, EndpointIdentity.CreateDnsIdentity(ServerCertificate.COMMON_NAME));
+            var channelFactory = new DuplexChannelFactory<IScanService>(instanceContext, binding, endpoint);
             channelFactory.Credentials.ServiceCertificate.SslCertificateAuthentication = new X509ServiceCertificateAuthentication
             {
                 CertificateValidationMode = X509CertificateValidationMode.Custom,
