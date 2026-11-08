@@ -9,16 +9,19 @@ using NAPS2.Scan.Images.Transforms;
 using NAPS2.Scan;
 using NAPS2.Util;
 using NAPS2.Recovery;
+using NAPS2.Config;
 
 namespace NAPS2.Scan.Images
 {
     public class barCodeOperation : OperationBase
     {
         private readonly ScannedImageRenderer scannedImageRenderer;
+        private readonly IUserConfigManager userConfigManager;
 
-        public barCodeOperation(ScannedImageRenderer scannedImageRenderer)
+        public barCodeOperation(ScannedImageRenderer scannedImageRenderer, IUserConfigManager userConfigManager)
         {
             this.scannedImageRenderer = scannedImageRenderer;
+            this.userConfigManager = userConfigManager;
     
             AllowCancel = true;
             AllowBackground = true;
@@ -26,6 +29,12 @@ namespace NAPS2.Scan.Images
 
         public bool Start(ICollection<ScannedImage> images)
         {
+            // Applique le filtre de format choisi dans les réglages, avant le traitement parallèle
+            var config = userConfigManager.Config;
+            PatchCodeDetector.RequiredFormatPattern = config.BarcodeFilterEnabled && !string.IsNullOrWhiteSpace(config.BarcodeFilterPattern)
+                ? config.BarcodeFilterPattern
+                : null;
+
             ProgressTitle = MiscResources.BarcodeTitle;
             Status = new OperationStatus
             {

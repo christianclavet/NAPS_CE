@@ -87,5 +87,11 @@ namespace NAPS2.Config
         // Persisted fill color of the mask tool (ARGB), white by default
         public int MaskColorArgb { get; set; } = System.Drawing.Color.White.ToArgb();
 
+        // Détection de codes-barres : filtre de format. Vide = aucun filtre (tous les codes sont acceptés).
+        public bool BarcodeFilterEnabled { get; set; }
+
+        // Expression régulière que doit respecter le texte d'un code-barres lu (exemple : ^SDOC\d{9}$)
+        public string BarcodeFilterPattern { get; set; } = "";
+
     }
 }

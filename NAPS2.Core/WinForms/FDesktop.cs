@@ -197,11 +197,23 @@ namespace NAPS2.WinForms
         /// <summary>
         /// Runs when the form is first loaded and every time the language is changed.
         /// </summary>
+        private ToolStripMenuItem tsBarCodeFilter;
+
         private void PostInitializeComponent()
         {
             foreach (var panel in toolStripContainer1.Controls.OfType<ToolStripPanel>())
             {
                 ToolStripPanelSetStyle.Invoke(panel, new object[] { ControlStyles.Selectable, true });
+            }
+
+            // Entrée « Filtre des codes-barres… » dans le menu image, juste après la détection.
+            // Ajoutée une seule fois : cette méthode est aussi rappelée lors d'un changement de langue.
+            if (tsBarCodeFilter == null)
+            {
+                tsBarCodeFilter = new ToolStripMenuItem("Filtre des codes-barres...");
+                tsBarCodeFilter.Click += tsBarCodeFilter_Click;
+                int index = tsdImage.DropDownItems.IndexOf(tsBarCodeCheck);
+                tsdImage.DropDownItems.Insert(index + 1, tsBarCodeFilter);
             }
             imageList.ThumbnailRenderer = thumbnailRenderer;
             thumbnailList1.ThumbnailRenderer = thumbnailRenderer;
@@ -3343,6 +3355,14 @@ namespace NAPS2.WinForms
             BarCodeCheck();
             DisplaySelectedItem_info();
 
+        }
+
+        private void tsBarCodeFilter_Click(object sender, EventArgs e)
+        {
+            using (var form = FormFactory.Create<FBarcodeSettings>())
+            {
+                form.ShowDialog();
+            }
         }
 
         private void ctxScanBarCode_Click(object sender, EventArgs e)

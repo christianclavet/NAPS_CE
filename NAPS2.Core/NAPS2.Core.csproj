@@ -289,6 +289,12 @@
     <Compile Include="WinForms\FProjectName.Designer.cs">
       <DependentUpon>FProjectName.cs</DependentUpon>
     </Compile>
+    <Compile Include="WinForms\FBarcodeSettings.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="WinForms\FBarcodeSettings.Designer.cs">
+      <DependentUpon>FBarcodeSettings.cs</DependentUpon>
+    </Compile>
     <Compile Include="WinForms\FProxyConfig.cs">
       <SubType>Form</SubType>
     </Compile>
