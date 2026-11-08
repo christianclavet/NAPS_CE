@@ -67,6 +67,9 @@ namespace NAPS2.Config
 
         public List<ScanProxyConfig> SavedProxies { get; set; } = new List<ScanProxyConfig>();
 
+        // Certificate thumbprints of scanning servers this application has already trusted, keyed by "ip:port"
+        public Dictionary<string, string> PinnedServerThumbprints { get; set; } = new Dictionary<string, string>();
+
         public string project { get; set; }
 
         public string LastPath {  get; set; }

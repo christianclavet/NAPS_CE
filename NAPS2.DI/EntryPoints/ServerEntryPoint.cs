@@ -59,13 +59,18 @@ namespace NAPS2.DI.EntryPoints
                     var serverIcon = new ServerNotifyIcon(port, () => form.Close());
                     host.Opened += (sender, eventArgs) => serverIcon.Show();
                     host.Description.Behaviors.Add(new ServiceFactoryBehavior(() => kernel.Get<ScanService>()));
+                    // Encrypted transport. The certificate is created on first run (see ServerCertificate).
+                    var serverCert = ServerCertificate.GetOrCreate();
+                    host.Credentials.ServiceCertificate.Certificate = serverCert;
                     var binding = new NetTcpBinding
                     {
                         ReceiveTimeout = TimeSpan.FromHours(1),
                         SendTimeout = TimeSpan.FromHours(1),
+                        MaxReceivedMessageSize = 64 * 1024 * 1024,
                         Security =
                         {
-                            Mode = SecurityMode.None
+                            Mode = SecurityMode.Transport,
+                            Transport = { ClientCredentialType = TcpClientCredentialType.None }
                         }
                     };
                     host.AddServiceEndpoint(typeof(IScanService), binding, $"net.tcp://0.0.0.0:{port}/NAPS2.Server");

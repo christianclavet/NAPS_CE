@@ -32,11 +32,26 @@ namespace NAPS2.ClientServer
 
         public void Hello(string clientName, string clientVersion)
         {
+            RequireLocalNetwork();
             ServerAudit.LogClientConnection(clientName, clientVersion);
+        }
+
+        /// <summary>
+        /// Rejects requests from outside the local network. Every operation calls this first.
+        /// </summary>
+        private static void RequireLocalNetwork()
+        {
+            var remote = ServerAddressFilter.CurrentRemoteAddress();
+            if (!ServerAddressFilter.IsAllowed(remote))
+            {
+                ServerAudit.LogRejected(remote);
+                throw new System.ServiceModel.FaultException("Connection not allowed from this network.");
+            }
         }
 
         public List<string> GetSupportedDriverNames()
         {
+            RequireLocalNetwork();
             var driverNames = new List<string>();
             if (PlatformCompat.System.IsWiaDriverSupported)
             {
@@ -58,21 +73,33 @@ namespace NAPS2.ClientServer
 
         public List<ScanDevice> GetDeviceList(ScanProfile scanProfile)
         {
-            if (scanProfile.DriverName == ProxiedScanDriver.DRIVER_NAME)
-            {
-                scanProfile.DriverName = scanProfile.ProxyDriverName;
-            }
-            var driver = scanDriverFactory.Create(scanProfile.DriverName);
-            driver.ScanProfile = scanProfile;
+            RequireLocalNetwork();
+            var profile = BuildServerProfile(scanProfile);
+            var driver = scanDriverFactory.Create(profile.DriverName);
+            driver.ScanProfile = profile;
             return driver.GetDeviceList();
+        }
+
+        /// <summary>
+        /// Builds the profile used on the server. The client's driver choice is only honored
+        /// if it is one of the drivers this server supports locally; otherwise the server default is used.
+        /// </summary>
+        private ScanProfile BuildServerProfile(ScanProfile requested)
+        {
+            var supported = GetSupportedDriverNames();
+            string driverName = supported.FirstOrDefault(x => x == requested?.DriverName)
+                                ?? supported.FirstOrDefault();
+            if (driverName == null)
+            {
+                throw new InvalidOperationException("No scanning driver is available on this server.");
+            }
+            return ScanProfileSanitizer.Sanitize(requested, driverName);
         }
 
         public async Task<int> Scan(ScanProfile scanProfile, ScanParams scanParams)
         {
-            if (scanProfile.DriverName == ProxiedScanDriver.DRIVER_NAME)
-            {
-                scanProfile.DriverName = scanProfile.ProxyDriverName;
-            }
+            RequireLocalNetwork();
+            scanProfile = BuildServerProfile(scanProfile);
             if (scanProfile.TwainImpl == TwainImpl.Legacy)
             {
                 scanProfile.TwainImpl = TwainImpl.OldDsm;
@@ -118,6 +145,7 @@ namespace NAPS2.ClientServer
 
         public void CancelScan()
         {
+            RequireLocalNetwork();
             scanCts.Cancel();
         }
     }

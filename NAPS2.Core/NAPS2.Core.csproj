@@ -166,6 +166,9 @@
     <Compile Include="ClientServer\ClientContextFactory.cs" />
     <Compile Include="ClientServer\ClientIdentity.cs" />
     <Compile Include="ClientServer\ServerAudit.cs" />
+    <Compile Include="ClientServer\ScanProfileSanitizer.cs" />
+    <Compile Include="ClientServer\ServerCertificate.cs" />
+    <Compile Include="ClientServer\ServerAddressFilter.cs" />
     <Compile Include="ClientServer\IScanCallback.cs" />
     <Compile Include="ClientServer\IScanService.cs" />
     <Compile Include="ClientServer\ProxiedScanDriver.cs" />

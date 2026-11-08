@@ -58,6 +58,17 @@ namespace NAPS2.ClientServer
             }
         }
 
+        public static void LogRejected(System.Net.IPAddress remote)
+        {
+            try
+            {
+                Logger.Value.Warn("REJECTED connection from outside the local network: {0}", remote?.ToString() ?? "unknown");
+            }
+            catch (Exception)
+            {
+            }
+        }
+
         private static string GetRemoteAddress()
         {
             var context = OperationContext.Current;
