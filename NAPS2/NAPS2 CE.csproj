@@ -306,8 +306,8 @@
   </Target>
   -->
   <Import Project="..\NAPS2\Setup\CommonTargets.targets" />
-  <!-- OCR (Tesseract 4.0.0b4, English/French/Spanish) and Ghostscript are versioned in NAPS2\components.
-       Copy them next to the executable so every build contains them, with no download at runtime. -->
+  <!-- OCR (Tesseract 4.0.0b4, English/French/Spanish) is versioned in NAPS2\components.
+       Copy it next to the executable so every build contains it, with no download at runtime. -->
   <Target Name="CopyBundledComponents" AfterTargets="Build">
     <ItemGroup>
       <BundledComponentFiles Include="$(ProjectDir)components\**\*.*" />
