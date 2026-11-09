@@ -12,6 +12,8 @@ namespace NAPS2.WinForms
 {
     public class WinFormsOperationProgress : IOperationProgress
     {
+        private const int HIDE_MAIN_FORM_DELAY_MS = 2000;
+
         private readonly IFormFactory formFactory;
         private readonly NotificationManager notificationManager;
         private readonly IUserConfigManager userConfigManager;
@@ -86,7 +88,35 @@ namespace NAPS2.WinForms
                     var button2 = form.GetButton2();
                     button2.BackColor = FDesktop.getCurrentModeBack();
                 }
-                form.ShowDialog();             
+
+                // If the operation is still running after the delay, hide the main form and keep only the progress window
+                var mainForm = notificationManager.ParentForm;
+                bool mainFormHidden = false;
+                var hideMainFormTimer = new System.Windows.Forms.Timer { Interval = HIDE_MAIN_FORM_DELAY_MS };
+                hideMainFormTimer.Tick += (sender, args) =>
+                {
+                    hideMainFormTimer.Stop();
+                    if (!op.IsFinished && mainForm != null && mainForm.Visible)
+                    {
+                        mainForm.Hide();
+                        mainFormHidden = true;
+                    }
+                };
+                hideMainFormTimer.Start();
+                try
+                {
+                    form.ShowDialog();
+                }
+                finally
+                {
+                    hideMainFormTimer.Stop();
+                    hideMainFormTimer.Dispose();
+                    // Restore the main form before notifications are shown on it
+                    if (mainFormHidden)
+                    {
+                        mainForm.Show();
+                    }
+                }
             }
 
             if (!op.IsFinished)
