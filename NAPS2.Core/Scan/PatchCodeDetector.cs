@@ -41,11 +41,13 @@ namespace NAPS2.Scan
                 bitmap = clone;
             }
 
+            // AutoRotate et TryInverted désactivés : BarcodeLocator localise le code, mesure son inclinaison
+            // et fournit une sous-image redressée à 0 degré. Les lecteurs 1D de ZXing lisent déjà
+            // les deux sens (gauche-droite et droite-gauche). Tous les formats restent actifs.
             var reader  = new BarcodeReader
             {
-                    AutoRotate = true,
-                    // Lit aussi les codes inversés (clair sur sombre). Tous les formats restent actifs.
-                    Options = new ZXing.Common.DecodingOptions { TryHarder = true, TryInverted = true }
+                    AutoRotate = false,
+                    Options = new ZXing.Common.DecodingOptions { TryHarder = UseTryHarder, TryInverted = false }
             };
 
             Result[] barcodeResult;
@@ -129,9 +131,84 @@ namespace NAPS2.Scan
         private static readonly int[] NeighborColOffsets = { -1, 1, 0, 0 };
 
         /// <summary>
-        /// Décode les zones candidates (les plus probables en premier) et retourne le premier résultat trouvé.
+        /// Si vrai, l'ancienne chaîne de localisation (cellules + rotations de confirmation) sert de repli
+        /// quand BarcodeLocator ne trouve rien. Faux par défaut : plus rapide sur les pages sans code-barres.
         /// </summary>
-        private static Result[] DecodeLocatedRegions(Bitmap bitmap, BarcodeReader reader)
+        public static bool UseLegacyFallback { get; set; }
+
+        /// <summary>
+        /// Active la passe approfondie (TryHarder) de ZXing quand la passe rapide ne lit rien.
+        /// Vrai par défaut. Faux = une seule passe rapide par candidat (plus rapide, lecture un peu moins tolérante).
+        /// </summary>
+        public static bool UseTryHarder { get; set; } = true;
+
+        // Nombre maximal de candidats redressés soumis à ZXing
+        private const int MaxLocatorCandidates = 6;
+
+        /// <summary>
+        /// Localise les codes (forme + inclinaison), les redresse et les soumet à ZXing.
+        /// Deux passes par candidat : lecture rapide (sans TryHarder), puis lecture approfondie seulement si besoin.
+        /// S'arrête au premier candidat qui donne un résultat.
+        /// </summary>
+        private static Result[] DecodeLocatedRegions(Bitmap bitmap, BarcodeReader hardReader)
+        {
+            var fastReader = new BarcodeReader
+            {
+                AutoRotate = false,
+                Options = new ZXing.Common.DecodingOptions { TryHarder = false, TryInverted = false }
+            };
+
+            List<LocatedBarcode> candidates = BarcodeLocator.LocateDetailed(bitmap, MaxLocatorCandidates);
+            try
+            {
+                // Passe rapide sur tous les candidats (le meilleur score en premier)
+                foreach (LocatedBarcode candidate in candidates)
+                {
+                    Result[] results = ReadCandidate(fastReader, candidate);
+                    if (results != null)
+                    {
+                        return results;
+                    }
+                }
+                // Passe approfondie : seulement si la passe rapide n'a rien lu (et si TryHarder est actif)
+                if (UseTryHarder)
+                {
+                    foreach (LocatedBarcode candidate in candidates)
+                    {
+                        Result[] results = ReadCandidate(hardReader, candidate);
+                        if (results != null)
+                        {
+                            return results;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                foreach (LocatedBarcode candidate in candidates)
+                {
+                    candidate.Dispose();
+                }
+            }
+
+            return UseLegacyFallback ? DecodeLegacyRegions(bitmap, hardReader) : null;
+        }
+
+        private static Result[] ReadCandidate(BarcodeReader reader, LocatedBarcode candidate)
+        {
+            Result[] results = reader.DecodeMultiple(candidate.Image);
+            if (results != null && results.Length > 0)
+            {
+                Debug.WriteLine("Code lu (angle " + candidate.AngleDegrees.ToString("F1") + ", centre " + candidate.Center + ") : " + results[0].Text);
+                return results;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Ancienne chaîne : zones à 0 degré, puis zones inclinées redressées par rotation, avec confirmation.
+        /// </summary>
+        private static Result[] DecodeLegacyRegions(Bitmap bitmap, BarcodeReader reader)
         {
             Rectangle foundRect;
             Result[] results = DecodeRegionsOf(bitmap, reader, out foundRect);

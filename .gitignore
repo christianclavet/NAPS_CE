@@ -4,3 +4,6 @@ packages/
 *.suo
 .vs/
 .idea/
+# Sorties des scripts de test du localisateur de codes-barres
+NAPS2.Tests/Scripts/*.result.txt
+NAPS2.Tests/Scripts/diag/

@@ -374,6 +374,14 @@
     <Compile Include="Scan\Images\Transforms\SharpenTransform.cs" />
     <Compile Include="Scan\Images\Transforms\TrueContrastTransform.cs" />
     <Compile Include="Scan\PatchCode.cs" />
+    <Compile Include="Scan\BarcodeLocator.cs" />
+    <Compile Include="Scan\BarcodeLocator.Components.cs" />
+    <Compile Include="Scan\BarcodeLocator.Extract.cs" />
+    <Compile Include="Scan\BarcodeLocator.Mask.cs" />
+    <Compile Include="Scan\BarcodeLocator.Orientation.cs" />
+    <Compile Include="Scan\BarcodeLocator.Pipeline.cs" />
+    <Compile Include="Scan\BarcodeLocator.Pixels.cs" />
+    <Compile Include="Scan\LocatedBarcode.cs" />
     <Compile Include="Scan\PatchCodeDetector.cs" />
     <Compile Include="Scan\ProfileNameTracker.cs" />
     <Compile Include="Scan\ScanParams.cs" />
