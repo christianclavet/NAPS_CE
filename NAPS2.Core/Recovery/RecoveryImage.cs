@@ -5,6 +5,7 @@ using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NAPS2.Logging;
 using NAPS2.Scan;
@@ -88,6 +89,12 @@ namespace NAPS2.Recovery
         public static void DeleteWorkFolder()
         {
             // Only delete a folder this process owns (created and locked by this process)
+            if (IsAdopted)
+            {
+                // A saved project opened in place is never deleted, only released
+                ReleaseAdopted();
+                return;
+            }
             if (DisableRecoveryCleanup || _recoveryIndexManager == null)
             {
                 return;
@@ -123,7 +130,107 @@ namespace NAPS2.Recovery
 
         public static RecoveryImage LoadExisting(RecoveryIndexImage recoveryIndexImage)
         {
-            return new RecoveryImage(recoveryIndexImage);
+            return new RecoveryImage(recoveryIndexImage, false);
+        }
+
+        /// <summary>
+        /// Wraps an entry of an adopted project's index. The entry is already in the index and its file already exists.
+        /// </summary>
+        public static RecoveryImage LoadAdopted(RecoveryIndexImage recoveryIndexImage)
+        {
+            return new RecoveryImage(recoveryIndexImage, true);
+        }
+
+        /// <summary>
+        /// True when the current folder is a saved project opened in place (not a temporary work folder).
+        /// Its files are never deleted when the project is closed.
+        /// </summary>
+        public static bool IsAdopted { get; private set; }
+
+        /// <summary>
+        /// Incremented each time the recovery folder changes, so workers holding the old path can be restarted.
+        /// </summary>
+        public static int FolderVersion { get; private set; }
+
+        public static RecoveryIndexManager CurrentIndexManager => _recoveryIndexManager;
+
+        private static int keepFilesCount;
+
+        /// <summary>
+        /// While the returned scope is open, disposing pages does not delete their files or index entries.
+        /// </summary>
+        public static IDisposable KeepFiles()
+        {
+            Interlocked.Increment(ref keepFilesCount);
+            return new KeepFilesScope();
+        }
+
+        private class KeepFilesScope : IDisposable
+        {
+            public void Dispose()
+            {
+                Interlocked.Decrement(ref keepFilesCount);
+            }
+        }
+
+        /// <summary>
+        /// Makes a saved project folder the current recovery folder, so it can be opened without copying anything.
+        /// Returns false (nothing changed) when the folder is in use or has no usable index.
+        /// </summary>
+        public static bool TryAdopt(DirectoryInfo folder, out RecoveryIndex index)
+        {
+            index = null;
+            FileStream newLock = null;
+            try
+            {
+                newLock = new FileStream(Path.Combine(folder.FullName, LOCK_FILE_NAME), FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                var manager = new RecoveryIndexManager(folder);
+                index = manager.Index;
+                // Ignore entries whose file is gone
+                index.Images.RemoveAll(x => !File.Exists(Path.Combine(folder.FullName, x.FileName)));
+
+                // Release whatever this process owned before
+                if (IsAdopted)
+                {
+                    ReleaseAdopted();
+                }
+                else
+                {
+                    DeleteWorkFolder();
+                }
+                _recoveryFolder = folder;
+                _recoveryLockFile = new FileInfo(Path.Combine(folder.FullName, LOCK_FILE_NAME));
+                _recoveryLock = newLock;
+                _recoveryIndexManager = manager;
+                IsAdopted = true;
+                FolderVersion++;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                newLock?.Dispose();
+                Log.ErrorException("Could not open the project in place.", ex);
+                index = null;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Stops using an adopted project folder without touching its files. A new work folder is created on next use.
+        /// </summary>
+        public static void ReleaseAdopted()
+        {
+            if (!IsAdopted)
+            {
+                return;
+            }
+            _recoveryLock?.Dispose();
+            _recoveryLock = null;
+            _recoveryLockFile = null;
+            _recoveryIndexManager = null;
+            _recoveryFolder = null;
+            IsAdopted = false;
+            FolderVersion++;
         }
 
         public static void Refresh(IEnumerable<ScannedImage> images)
@@ -194,8 +301,23 @@ namespace NAPS2.Recovery
             };
         }
 
-        private RecoveryImage(RecoveryIndexImage recoveryIndexImage)
+        private RecoveryImage(RecoveryIndexImage recoveryIndexImage, bool adopted)
         {
+            if (adopted)
+            {
+                FileFormat = ".png".Equals(Path.GetExtension(recoveryIndexImage.FileName), StringComparison.InvariantCultureIgnoreCase) ? ImageFormat.Png
+                    : ".pdf".Equals(Path.GetExtension(recoveryIndexImage.FileName), StringComparison.InvariantCultureIgnoreCase) ? null
+                    : ImageFormat.Jpeg;
+                FileName = recoveryIndexImage.FileName;
+                barCode = recoveryIndexImage.BarCode;
+                SheetSide = recoveryIndexImage.SheetSide;
+                IsSeparator = recoveryIndexImage.isSeparator;
+                SeparatorName = recoveryIndexImage.SeparatorName;
+                FilePath = Path.Combine(RecoveryFolder.FullName, FileName);
+                IndexImage = recoveryIndexImage;
+                saved = true;
+                return;
+            }
             if (_recoveryIndexManager != null && _recoveryIndexManager.Index.Images.Contains(recoveryIndexImage))
             {
                 throw new ArgumentException("Recovery image already exists in index");
@@ -245,7 +367,11 @@ namespace NAPS2.Recovery
                         _recoveryIndexManager.Index.Images.Add(IndexImage);
                         saved = true;
                     }
-                    _recoveryIndexManager.Save();
+                    // While a batch operation defers saving (e.g. loading a project), the index is written once at the end
+                    if (!DeferredSave.IsDeferred)
+                    {
+                        _recoveryIndexManager.Save();
+                    }
                 }
             }
         }
@@ -268,7 +394,7 @@ namespace NAPS2.Recovery
         {
             try
             {
-                if (_recoveryIndexManager != null && !DisableRecoveryCleanup && File.Exists(FilePath))
+                if (_recoveryIndexManager != null && !DisableRecoveryCleanup && Volatile.Read(ref keepFilesCount) == 0 && File.Exists(FilePath))
                 {
                     File.Delete(FilePath);
                     lock (_recoveryIndexManager)
@@ -279,7 +405,7 @@ namespace NAPS2.Recovery
                             _recoveryIndexManager.Save();
                         }
                     }
-                    if (_recoveryIndexManager.Index.Images.Count == 0)
+                    if (_recoveryIndexManager.Index.Images.Count == 0 && !IsAdopted)
                     {
                         _recoveryLock.Dispose();
                         RecoveryFolder.Delete(true);

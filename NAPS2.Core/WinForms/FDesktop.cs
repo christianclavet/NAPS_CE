@@ -500,7 +500,7 @@ namespace NAPS2.WinForms
                         
                         bitmap?.Dispose();
 
-                        imageList.Delete(Enumerable.Range(0, imageList.Images.Count));
+                        DeleteAllImagesKeepingProject();
                         
 
                     }
@@ -551,7 +551,7 @@ namespace NAPS2.WinForms
             SaveToolStripLocation();
             Pipes.KillServer();
             //Remove the work folder when closing the application
-            imageList.Delete(Enumerable.Range(0, imageList.Images.Count));
+            DeleteAllImagesKeepingProject();
             RecoveryImage.DeleteWorkFolder();
 
             closed = true;
@@ -1204,7 +1204,7 @@ namespace NAPS2.WinForms
                 {
                     tiffViewerCtl1.Image = null;
 
-                    imageList.Delete(Enumerable.Range(0, imageList.Images.Count));
+                    DeleteAllImagesKeepingProject();
                     DeleteThumbnails();
                     changeTracker.Clear();
                     projectName = string.Format(MiscResources.ProjectName);
@@ -1215,7 +1215,7 @@ namespace NAPS2.WinForms
                 {
                     tiffViewerCtl1.Image = null;
 
-                    imageList.Delete(Enumerable.Range(0, imageList.Images.Count));
+                    DeleteAllImagesKeepingProject();
                     DeleteThumbnails();
                     changeTracker.Clear();
                     projectName = string.Format(MiscResources.ProjectName);
@@ -2756,6 +2756,7 @@ namespace NAPS2.WinForms
         private void RenderThumbnails()
         {
             bool useWorker = PlatformCompat.Runtime.UseWorker;
+            int workerFolderVersion = RecoveryImage.FolderVersion;
             var worker = useWorker ? workerServiceFactory.Create() : null;
             var fallback = new ExpFallback(100, 60 * 1000);
             while (!closed)
@@ -2765,6 +2766,13 @@ namespace NAPS2.WinForms
                     ScannedImage next;
                     while ((next = GetNextThumbnailToRender()) != null)
                     {
+                        // The work folder changed (project opened in place or closed): the worker must use the new one
+                        if (worker != null && workerFolderVersion != RecoveryImage.FolderVersion)
+                        {
+                            worker.Dispose();
+                            workerFolderVersion = RecoveryImage.FolderVersion;
+                            worker = workerServiceFactory.Create();
+                        }
                         if (!ThumbnailStillNeedsRendering(next))
                         {
                             continue;
@@ -2773,7 +2781,7 @@ namespace NAPS2.WinForms
                         {
                             var thumb = worker != null
                                 ? new Bitmap(new MemoryStream(worker.Service.RenderThumbnail(snapshot, thumbnailList1.ThumbnailSize.Height)))
-                                : thumbnailRenderer.RenderThumbnail(snapshot, thumbnailList1.ThumbnailSize.Height).Result;
+                                : thumbnailRenderer.RenderThumbnailNow(snapshot, thumbnailList1.ThumbnailSize.Height);
 
                             if (!ThumbnailStillNeedsRendering(next))
                             {
@@ -2791,6 +2799,7 @@ namespace NAPS2.WinForms
                     if (worker != null)
                     {
                         worker.Dispose();
+                        workerFolderVersion = RecoveryImage.FolderVersion;
                         worker = workerServiceFactory.Create();
                     }
                     Thread.Sleep(fallback.Value);
@@ -2805,8 +2814,7 @@ namespace NAPS2.WinForms
         {
             lock (next)
             {
-                using (var thumb = next.GetThumbnail())
-                return thumb == null || next.IsThumbnailDirty || thumb.Size != thumbnailList1.ThumbnailSize;
+                return !next.HasThumbnail || next.IsThumbnailDirty || next.CurrentThumbnailSize != thumbnailList1.ThumbnailSize;
             }
         }
 
@@ -2820,7 +2828,7 @@ namespace NAPS2.WinForms
             // Look for images without thumbnails
             foreach (var img in listCopy)
             {
-                if (img.GetThumbnail() == null)
+                if (!img.HasThumbnail)
                 {
                     return img;
                 }
@@ -2836,7 +2844,7 @@ namespace NAPS2.WinForms
             // Look for images with mis-sized thumbnails
             foreach (var img in listCopy)
             {
-                if (img.GetThumbnail()?.Size != thumbnailList1.ThumbnailSize)
+                if (img.CurrentThumbnailSize != thumbnailList1.ThumbnailSize)
                 {
                     return img;
                 }
@@ -3108,7 +3116,7 @@ namespace NAPS2.WinForms
         #endregion
 
         #region new stuff
-        private void loadProjectTool_TSMI_Click_1(object sender, EventArgs e)
+        private async void loadProjectTool_TSMI_Click_1(object sender, EventArgs e)
         {
 
             bool skipSave = false;
@@ -3141,6 +3149,12 @@ namespace NAPS2.WinForms
             if (result == DialogResult.OK)
             {
                 DirectoryInfo di = new DirectoryInfo(Path.GetDirectoryName(openFileDialog.FileName));
+                if (RecoveryImage.IsAdopted && RecoveryImage._recoveryFolder != null &&
+                    string.Equals(RecoveryImage._recoveryFolder.FullName.TrimEnd('\\'), di.FullName.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
+                {
+                    // This project is already open
+                    return;
+                }
                 if (File.Exists(Path.Combine(di.FullName, ".lock")))
                 {
                     if (imageList.Images.Count > 0 && skipSave) 
@@ -3155,8 +3169,46 @@ namespace NAPS2.WinForms
                     userConfigManager.Save();
                     recoveryManager.SetFolder(di); //Set to a folder other than the last used one.
                     //recover mode activated = (will not update the gui of the image preview while loading)
-                    recover = true;                                  
-                    recoveryManager.RecoverScannedImages(ReceiveRecovery());
+                    recover = true;
+                    // Fast path: the project folder becomes the work folder and its index is read as is (no copy)
+                    // Index reading and file checks run off the UI thread so the window stays responsive
+                    var opened = new List<ScannedImage>();
+                    Cursor = Cursors.WaitCursor;
+                    statusStrip1.Items[0].Text = "Loading project...";
+                    bool adopted;
+                    try
+                    {
+                        adopted = await Task.Run(() => recoveryManager.OpenProjectInPlace(opened.Add));
+                    }
+                    finally
+                    {
+                        Cursor = Cursors.Default;
+                    }
+                    if (adopted)
+                    {
+                        // Pages reach the UI in chunks, so the window keeps repainting and the first thumbnails show early
+                        await Task.Run(() =>
+                        {
+                            const int chunk = 100;
+                            for (int i = 0; i < opened.Count; i += chunk)
+                            {
+                                lock (pendingRecoveredImages)
+                                {
+                                    pendingRecoveredImages.AddRange(opened.Skip(i).Take(chunk));
+                                }
+                                FlushRecoveredImages();
+                            }
+                        });
+                        SetRecover(false);
+                        // Replace the "Loading project..." text now that the list is complete
+                        statusStrip1.Items[0].Text = MiscResources.No_selection;
+                    }
+                    else
+                    {
+                        statusStrip1.Items[0].Text = MiscResources.No_selection;
+                        // Folder in use or unreadable index: fall back to loading a copy of the project
+                        recoveryManager.RecoverScannedImages(ReceiveRecovery());
+                    }
                     projectName = di.Name;
 
                     UserConfigManager.Config.project = projectName;
@@ -3221,17 +3273,42 @@ namespace NAPS2.WinForms
             }
         }
 
+        /// <summary>
+        /// Removes every page from the list. A project opened in place keeps its files on disk and is released.
+        /// </summary>
+        private void DeleteAllImagesKeepingProject()
+        {
+            if (RecoveryImage.IsAdopted)
+            {
+                recoveryManager.Save();
+                using (RecoveryImage.KeepFiles())
+                {
+                    imageList.Delete(Enumerable.Range(0, imageList.Images.Count));
+                }
+                RecoveryImage.ReleaseAdopted();
+            }
+            else
+            {
+                imageList.Delete(Enumerable.Range(0, imageList.Images.Count));
+            }
+        }
+
         private void closeWorkspace(bool clear=true)
         {
-            //Recovery lock must be removed first to do operations
-            if (RecoveryImage._recoveryLock!=null)
+            bool adopted = RecoveryImage.IsAdopted;
+            //Recovery lock must be removed first to do operations (a project opened in place is already saved: no copy needed)
+            if (adopted)
+            {
+                recoveryManager.Save();
+            }
+            else if (RecoveryImage._recoveryLock!=null)
                 RecoveryImage._recoveryLock.Dispose();
 
             var todayDate = DateTime.Now;
             string strToday = todayDate.ToString("MM_dd_yyyy_HH_mm_ss"); // converts date to string as per current culture
 
             //Copy the work folder to another folder to keep it, if only it contain images
-            if (imageList.Images.Count() > 0)
+            if (!adopted && imageList.Images.Count() > 0)
             {
                 // If the projectname was not named, will put the "untitled" and the date so it will be easier to find out later, else keep the defined name for the folder
                 if (projectName.Contains(string.Format(MiscResources.ProjectName)))
@@ -3249,9 +3326,13 @@ namespace NAPS2.WinForms
 
                 if (imageList.Images.Count() > 0)
                 {
-                    imageList.Delete(Enumerable.Range(0, imageList.Images.Count));
+                    DeleteAllImagesKeepingProject();
                     DeleteThumbnails();
                     documents.Clear();
+                }
+                else if (adopted)
+                {
+                    RecoveryImage.ReleaseAdopted();
                 }
                 if (changeTracker!=null)
                     changeTracker.Clear();

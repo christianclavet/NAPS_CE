@@ -30,17 +30,23 @@ namespace NAPS2.Scan.Images
 
         public async Task<Bitmap> Render(ScannedImage.Snapshot snapshot, int outputSize = 0)
         {
-            return await Task.Factory.StartNew(() =>
+            return await Task.Factory.StartNew(() => RenderNow(snapshot, outputSize));
+        }
+
+        /// <summary>
+        /// Same as <see cref="Render(ScannedImage.Snapshot,int)"/>, but runs on the calling thread.
+        /// Used by callers that already render on their own worker threads.
+        /// </summary>
+        public Bitmap RenderNow(ScannedImage.Snapshot snapshot, int outputSize = 0)
+        {
+            var bitmap = snapshot.Source.FileFormat == null
+                ? pdfRenderer.Render(snapshot.Source.RecoveryFilePath).Single()
+                : new Bitmap(snapshot.Source.RecoveryFilePath);
+            if (outputSize > 0)
             {
-                var bitmap = snapshot.Source.FileFormat == null
-                    ? pdfRenderer.Render(snapshot.Source.RecoveryFilePath).Single()
-                    : new Bitmap(snapshot.Source.RecoveryFilePath);
-                if (outputSize > 0)
-                {
-                    bitmap = ShrinkBitmap(bitmap, outputSize);
-                }
-                return Transform.PerformAll(bitmap, snapshot.TransformList);
-            });
+                bitmap = ShrinkBitmap(bitmap, outputSize);
+            }
+            return Transform.PerformAll(bitmap, snapshot.TransformList);
         }
 
         private Bitmap ShrinkBitmap(Bitmap bitmap, int outputSize)
@@ -53,7 +59,8 @@ namespace NAPS2.Scan.Images
             var bitmap2 = new Bitmap((int)Math.Round(bitmap.Width * scaleFactor), (int)Math.Round(bitmap.Height * scaleFactor));
             using (var g = Graphics.FromImage(bitmap2))
             {
-                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                // Bicubic is very slow on large pages; the prefiltered bilinear mode is as good when shrinking a lot
+                g.InterpolationMode = scaleFactor < 0.5 ? InterpolationMode.HighQualityBilinear : InterpolationMode.HighQualityBicubic;
                 g.DrawImage(bitmap, new Rectangle(Point.Empty, bitmap2.Size), new Rectangle(Point.Empty, bitmap.Size), GraphicsUnit.Pixel);
             }
             bitmap.Dispose();

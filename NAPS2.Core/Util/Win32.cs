@@ -35,6 +35,13 @@ namespace NAPS2.Util
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool SetDllDirectory(string lpPathName);
 
+        /// <summary>
+        /// Creates an NTFS hard link: a second name for the same file data, without copying it.
+        /// </summary>
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool CreateHardLink(string lpFileName, string lpExistingFileName, IntPtr lpSecurityAttributes);
+
         [DllImport("kernel32.dll")]
         public static extern IntPtr LoadLibrary(string path);
 

@@ -142,6 +142,29 @@ namespace NAPS2.Scan.Images
 
         }
 
+        /// <summary>
+        /// Wraps an entry of the adopted project's index. Nothing is copied, decoded or saved.
+        /// </summary>
+        public static ScannedImage FromAdoptedIndexImage(RecoveryIndexImage indexImage)
+        {
+            return new ScannedImage(indexImage, true);
+        }
+
+        private ScannedImage(RecoveryIndexImage recoveryIndexImage, bool adopted)
+        {
+            recoveryImage = RecoveryImage.LoadAdopted(recoveryIndexImage);
+            if (recoveryIndexImage.TransformList == null)
+            {
+                recoveryIndexImage.TransformList = new List<Transform>();
+            }
+            transformList = recoveryIndexImage.TransformList;
+            highQuality = recoveryIndexImage.HighQuality;
+            barCodeData = recoveryIndexImage.BarCode;
+            BarCodeData = recoveryIndexImage.BarCode;
+            SheetSide = recoveryIndexImage.SheetSide;
+            Separator = recoveryIndexImage.isSeparator;
+        }
+
         private ScannedImage(string pdfPath, bool copy)
         {
             transformList = new List<Transform>();
@@ -152,7 +175,7 @@ namespace NAPS2.Scan.Images
 
             if (copy)
             {
-                File.Copy(pdfPath, recoveryImage.FilePath);
+                LinkOrCopy(pdfPath, recoveryImage.FilePath);
             }
             else
             {
@@ -194,8 +217,31 @@ namespace NAPS2.Scan.Images
             this.highQuality = highQuality;
             transformList = new List<Transform>();
             recoveryImage = RecoveryImage.CreateNew(format, bitDepth, highQuality, transformList);
-            File.Copy(imagePath, recoveryImage.FilePath);
+            LinkOrCopy(imagePath, recoveryImage.FilePath);
             recoveryImage.Save();
+        }
+
+        /// <summary>
+        /// Makes the file available at <paramref name="destPath"/> without moving the bytes when possible.
+        /// Recovery files are never modified in place (edits are stored as transforms and a deleted page only removes
+        /// its own name), so an NTFS hard link is safe and instant. Falls back to a real copy when linking fails,
+        /// e.g. on another volume, on a non NTFS file system, or on Mono.
+        /// </summary>
+        private static void LinkOrCopy(string sourcePath, string destPath)
+        {
+            try
+            {
+                if (Environment.OSVersion.Platform == PlatformID.Win32NT &&
+                    Win32.CreateHardLink(destPath, sourcePath, IntPtr.Zero))
+                {
+                    return;
+                }
+            }
+            catch (Exception)
+            {
+                // Fall through to a regular copy
+            }
+            File.Copy(sourcePath, destPath);
         }
 
 
@@ -291,6 +337,34 @@ namespace NAPS2.Scan.Images
                 recoveryImage.Save();
             }
             ThumbnailInvalidated?.Invoke(this, new EventArgs());
+        }
+
+        /// <summary>
+        /// True when a thumbnail is set. Unlike GetThumbnail this does not clone the bitmap.
+        /// </summary>
+        public bool HasThumbnail
+        {
+            get
+            {
+                lock (this)
+                {
+                    return thumbnail != null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Size of the current thumbnail, or Size.Empty when there is none. Does not clone the bitmap.
+        /// </summary>
+        public System.Drawing.Size CurrentThumbnailSize
+        {
+            get
+            {
+                lock (this)
+                {
+                    return thumbnail?.Size ?? System.Drawing.Size.Empty;
+                }
+            }
         }
 
         public Bitmap GetThumbnail()

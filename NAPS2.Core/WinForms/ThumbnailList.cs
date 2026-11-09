@@ -157,6 +157,7 @@ namespace NAPS2.WinForms
                 }
                 EndUpdate();
 
+                BeginUpdate();
                 for (int i = ilThumbnailList.Images.Count; i < allImages.Count; i++)
                 {
                     if (!recover)
@@ -182,6 +183,7 @@ namespace NAPS2.WinForms
                     }
                     
                 }
+                EndUpdate();
 
             }
             Invalidate();
@@ -399,8 +401,15 @@ namespace NAPS2.WinForms
                         break;
                     }
                     Groups[documentCount - 1].Items.Add(Items[i]);
+                }
+                // Native group messages are sent once per group instead of once per page
+                if (Groups.Count > 0)
+                {
                     SetGroupState(ListViewGroupState.Collapsible);
-                    SetGroupFooter(Groups[documentCount - 1], (Groups[documentCount - 1].Items.Count).ToString() + MiscResources.PagesDoc);
+                    foreach (ListViewGroup group in Groups)
+                    {
+                        SetGroupFooter(group, group.Items.Count.ToString() + MiscResources.PagesDoc);
+                    }
                 }
                 document.lastpage = images.Count;
                 documents.Add(document);

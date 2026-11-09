@@ -113,9 +113,46 @@ namespace NAPS2.Recovery
         public void Save()
         {  // Save the project data from the data in the container.
             
-            var recoveryIndexManager = new RecoveryIndexManager(RecoveryImage._recoveryFolder);
-            recoveryIndexManager.Index.ProjectSettings = imageSettingsContainer.Project_Settings;
-            recoveryIndexManager.Save();
+            // Reuse the live index when there is one, so unsaved page changes are not lost by reloading it from disk
+            var recoveryIndexManager = RecoveryImage.CurrentIndexManager ?? new RecoveryIndexManager(RecoveryImage._recoveryFolder);
+            lock (recoveryIndexManager)
+            {
+                recoveryIndexManager.Index.ProjectSettings = imageSettingsContainer.Project_Settings;
+                recoveryIndexManager.Save();
+            }
+        }
+
+        /// <summary>
+        /// Opens a saved project in place: its folder becomes the work folder and the index is used as is,
+        /// without copying, decoding or rewriting any page. Returns false when the folder cannot be adopted
+        /// (e.g. it is locked by another instance), in which case nothing changed.
+        /// </summary>
+        public bool OpenProjectInPlace(Action<ScannedImage> imageCallback)
+        {
+            if (folderToRecoverFrom == null || !RecoveryImage.TryAdopt(folderToRecoverFrom, out var index))
+            {
+                return false;
+            }
+            ImageSettingsContainer.ProjectSettings = new ProjectSettings
+            {
+                CSVFileName = index.ProjectSettings.CSVFileName,
+                DefaultFileName = index.ProjectSettings.DefaultFileName,
+                UseCSVExport = index.ProjectSettings.UseCSVExport,
+                CSVExpression = index.ProjectSettings.CSVExpression,
+                Name = index.ProjectSettings.Name
+            };
+            imageSettingsContainer.Project_Settings = ImageSettingsContainer.ProjectSettings;
+
+            foreach (var indexImage in index.Images.ToList())
+            {
+                var scannedImage = ScannedImage.FromAdoptedIndexImage(indexImage);
+                if (string.IsNullOrEmpty(indexImage.SeparatorName))
+                {
+                    indexImage.SeparatorName = Path.Combine(folderToRecoverFrom.FullName, indexImage.FileName);
+                }
+                imageCallback(scannedImage);
+            }
+            return true;
         }
 
         public void RecoverScannedImages(Action<ScannedImage> imageCallback, bool deleteSourceAfterRecovery = false)
@@ -207,7 +244,13 @@ namespace NAPS2.Recovery
                     {
                         try
                         {
-                            if (DoRecover(imageCallback))
+                            bool recovered;
+                            // index.xml is rewritten in full on every page save: write it once at the end instead
+                            using (RecoveryImage.DeferSave())
+                            {
+                                recovered = DoRecover(imageCallback);
+                            }
+                            if (recovered)
                             {
                                     // Theses are not recovered but used as loading a previous projet, so no delete
                                     ReleaseFolderLock();
@@ -275,8 +318,9 @@ namespace NAPS2.Recovery
                     else
                     {
                         //Retrieve the information to store inside the image data of Naps.
-                        using (var bitmap = new Bitmap(imagePath))
-                        //using (var bitmap = new Bitmap(20,20))
+                        // Only the header is needed here (size, DPI, pixel format), so don't validate/decode the pixel data
+                        using (var metaStream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                        using (var bitmap = (Bitmap)Image.FromStream(metaStream, false, false))
                         {
                             scannedImage = ScannedImage.FromRecoveryFile(imagePath, indexImage.BitDepth, indexImage.HighQuality)
                                 ?? new ScannedImage(bitmap, indexImage.BitDepth, indexImage.HighQuality, -1);                            

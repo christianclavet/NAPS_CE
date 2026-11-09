@@ -82,6 +82,18 @@ namespace NAPS2.Scan.Images
             }
         }
 
+        /// <summary>
+        /// Same as <see cref="RenderThumbnail(ScannedImage.Snapshot,int)"/>, but runs on the calling thread
+        /// instead of starting a task. Meant for callers that already render on their own worker threads.
+        /// </summary>
+        public Bitmap RenderThumbnailNow(ScannedImage.Snapshot snapshot, int size)
+        {
+            using (var bitmap = scannedImageRenderer.RenderNow(snapshot, snapshot.TransformList.Count == 0 ? 0 : size * OVERSAMPLE))
+            {
+                return RenderThumbnail(bitmap, size);
+            }
+        }
+
         public Bitmap RenderThumbnail(Bitmap b)
         {
             return RenderThumbnail(b, userConfigManager.Config.ThumbnailSize);
@@ -101,8 +113,10 @@ namespace NAPS2.Scan.Images
                 // The location and dimensions of the old bitmap, scaled and positioned within the thumbnail bitmap
                 int left, top, width, height;
 
-                // We want a nice thumbnail, so use the maximum quality interpolation
-                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                // We want a nice thumbnail. Bicubic is very slow on full-size pages, so when the source is much larger
+                // than the thumbnail the prefiltered bilinear mode is used: same look at this scale, several times faster.
+                bool bigSource = b.Width > size * 2 || b.Height > size * 2;
+                g.InterpolationMode = bigSource ? InterpolationMode.HighQualityBilinear : InterpolationMode.HighQualityBicubic;
 
                 if (b.Width > b.Height)
                 {
