@@ -4,10 +4,8 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
-using System.Numerics;
 using System.Runtime.InteropServices;
 using ZXing;
-using ZXing.Multi;
 
 namespace NAPS2.Scan
 {
@@ -118,11 +116,6 @@ namespace NAPS2.Scan
         private const double MinOrientationCoherence = 0.7;
         // Nombre minimal de cellules pour qu'une zone serve à estimer l'inclinaison
         private const int MinTiltCells = 8;
-        // Croissance de zone : énergie minimale d'une cellule voisine et écart d'orientation toléré (degrés)
-        private const int MinGrowEnergy = 250000;
-        private const double GrowAngleTolerance = 12.0;
-        // Une zone agrandie ne peut pas dépasser ce facteur par rapport à la zone de départ
-        private const int MaxGrowFactor = 4;
         // Inclinaison minimale (degrés) pour redresser l'image ; en dessous, la localisation à 0° suffit
         private const double MinTiltDegrees = 2.0;
         // Nombre maximal d'inclinaisons testées (chacune coûte une rotation de l'image)
@@ -375,86 +368,6 @@ namespace NAPS2.Scan
                 }
             }
             return result;
-        }
-
-        /// <summary>
-        /// Agrandit une zone inclinée : ajoute les cellules voisines (8 directions) dont l'énergie et
-        /// l'orientation des bords correspondent à l'inclinaison trouvée. Le code entier est ainsi couvert,
-        /// y compris les barres plus faibles aux extrémités. La croissance est bornée autour de la zone de départ.
-        /// </summary>
-        private static Rectangle GrowTiltedRegion(List<int> seed, double seedTilt, double[] jxx, double[] jyy, double[] jxy,
-            int cols, int rows, int width, int height)
-        {
-            int seedMinCol = cols, seedMaxCol = -1, seedMinRow = rows, seedMaxRow = -1;
-            foreach (int index in seed)
-            {
-                int row = index / cols;
-                int col = index % cols;
-                seedMinCol = Math.Min(seedMinCol, col);
-                seedMaxCol = Math.Max(seedMaxCol, col);
-                seedMinRow = Math.Min(seedMinRow, row);
-                seedMaxRow = Math.Max(seedMaxRow, row);
-            }
-
-            // Limites de croissance : la moitié de la largeur/hauteur de la zone de départ, au minimum quelques cellules
-            int capX = Math.Max(8, (seedMaxCol - seedMinCol + 1) / 2);
-            int capY = Math.Max(4, (seedMaxRow - seedMinRow + 1) / 2);
-
-            var inRegion = new bool[cols * rows];
-            var queue = new Queue<int>();
-            int minCol = seedMinCol, maxCol = seedMaxCol, minRow = seedMinRow, maxRow = seedMaxRow;
-            foreach (int index in seed)
-            {
-                inRegion[index] = true;
-                queue.Enqueue(index);
-            }
-
-            while (queue.Count > 0)
-            {
-                int index = queue.Dequeue();
-                int row = index / cols;
-                int col = index % cols;
-                for (int dr = -1; dr <= 1; dr++)
-                {
-                    for (int dc = -1; dc <= 1; dc++)
-                    {
-                        int nRow = row + dr;
-                        int nCol = col + dc;
-                        if ((dr == 0 && dc == 0) || nRow < 0 || nRow >= rows || nCol < 0 || nCol >= cols)
-                        {
-                            continue;
-                        }
-                        if (nRow < seedMinRow - capY || nRow > seedMaxRow + capY || nCol < seedMinCol - capX || nCol > seedMaxCol + capX)
-                        {
-                            continue;
-                        }
-                        int n = nRow * cols + nCol;
-                        if (inRegion[n] || jxx[n] + jyy[n] < MinGrowEnergy)
-                        {
-                            continue;
-                        }
-                        double cellTilt = 0.5 * Math.Atan2(2 * jxy[n], jxx[n] - jyy[n]) * 180.0 / Math.PI;
-                        if (AngleDistance(cellTilt, seedTilt) > GrowAngleTolerance)
-                        {
-                            continue;
-                        }
-                        inRegion[n] = true;
-                        queue.Enqueue(n);
-                        minCol = Math.Min(minCol, nCol);
-                        maxCol = Math.Max(maxCol, nCol);
-                        minRow = Math.Min(minRow, nRow);
-                        maxRow = Math.Max(maxRow, nRow);
-                    }
-                }
-            }
-            // Zone trop grande = probablement du texte ou une ligne : on garde la zone de départ
-            int grownCells = (maxCol - minCol + 1) * (maxRow - minRow + 1);
-            int seedCells = (seedMaxCol - seedMinCol + 1) * (seedMaxRow - seedMinRow + 1);
-            if (grownCells > seedCells * MaxGrowFactor)
-            {
-                minCol = seedMinCol; maxCol = seedMaxCol; minRow = seedMinRow; maxRow = seedMaxRow;
-            }
-            return CellsToRectangle(minCol, maxCol, minRow, maxRow, width, height);
         }
 
         /// <summary>
@@ -749,10 +662,5 @@ namespace NAPS2.Scan
             return PatchCode.None;
         }
 
-        void DetectBarcodeDeep(Bitmap bitmap)
-        {
-        
-
-        }
     }
 }
