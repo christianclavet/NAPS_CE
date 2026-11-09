@@ -93,5 +93,9 @@ namespace NAPS2.Config
         // Expression régulière que doit respecter le texte d'un code-barres lu (exemple : ^SDOC\d{9}$)
         public string BarcodeFilterPattern { get; set; } = "";
 
+        // Lance la détection des codes-barres en arrière-plan quand une numérisation se termine.
+        // Désactivé par défaut : l'utilisateur peut aussi lancer la détection à la main (menu Image).
+        public bool BarcodeAutoDetectAfterScan { get; set; }
+
     }
 }

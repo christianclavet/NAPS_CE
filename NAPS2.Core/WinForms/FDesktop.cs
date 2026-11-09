@@ -210,7 +210,7 @@ namespace NAPS2.WinForms
             // Ajoutée une seule fois : cette méthode est aussi rappelée lors d'un changement de langue.
             if (tsBarCodeFilter == null)
             {
-                tsBarCodeFilter = new ToolStripMenuItem("Filtre des codes-barres...");
+                tsBarCodeFilter = new ToolStripMenuItem("Options des codes-barres...");
                 tsBarCodeFilter.Click += tsBarCodeFilter_Click;
                 int index = tsdImage.DropDownItems.IndexOf(tsBarCodeCheck);
                 tsdImage.DropDownItems.Insert(index + 1, tsBarCodeFilter);
@@ -625,7 +625,8 @@ namespace NAPS2.WinForms
             if (profile != null)
             {
                 // We got a profile, yay, so we can actually do the scan now
-                await scanPerformer.PerformScan(profile, new ScanParams(), this, ReceiveScannedImage());
+                await scanPerformer.PerformScan(profile, new ScanParams(), this, ReceiveScannedImage(true));
+                RunAutoBarcodeDetection();
                 Activate();
             }
         }
@@ -644,8 +645,9 @@ namespace NAPS2.WinForms
 
             if (profileManager.DefaultProfile != null)
             {
-                await scanPerformer.PerformScan(profileManager.DefaultProfile, param, this, ReceiveScannedImage());
+                await scanPerformer.PerformScan(profileManager.DefaultProfile, param, this, ReceiveScannedImage(true));
                 param.RescanMode = false;
+                RunAutoBarcodeDetection();
             }
             
             else if (profileManager.Profiles.Count == 0)
@@ -675,8 +677,9 @@ namespace NAPS2.WinForms
             profileManager.Save();
             updateProfileButton();
 
-            await scanPerformer.PerformScan(editSettingsForm.ScanProfile, new ScanParams(), this, ReceiveScannedImage());
-       
+            await scanPerformer.PerformScan(editSettingsForm.ScanProfile, new ScanParams(), this, ReceiveScannedImage(true));
+            RunAutoBarcodeDetection();
+
             Activate();
         }
 
@@ -826,11 +829,21 @@ namespace NAPS2.WinForms
         /// This keeps images from the same source together, even if multiple sources are providing images at the same time.
         /// </summary>
         /// <returns></returns>
-        public Action<ScannedImage> ReceiveScannedImage()
+        /// <param name="autoBarcode">Vrai pour une numérisation : les pages reçues sont mémorisées pour la détection
+        /// automatique des codes-barres lancée à la fin du scan (voir RunAutoBarcodeDetection).</param>
+        public Action<ScannedImage> ReceiveScannedImage(bool autoBarcode = false)
         {
             ScannedImage last = null;
             return scannedImage =>
             {
+                if (autoBarcode && userConfigManager.Config.BarcodeAutoDetectAfterScan)
+                {
+                    lock (barcodeAutoPending)
+                    {
+                        barcodeAutoPending.Add(scannedImage);
+                    }
+                }
+
                 // Queue the page and return at once, so the scan thread does not wait for the UI for every page.
                 // The queue is drained in order on the UI thread, in one pass per batch (see ProcessScannedImageQueue).
                 lock (scannedImageQueue)
@@ -857,6 +870,38 @@ namespace NAPS2.WinForms
                     }
                 }
             };
+        }
+
+        // Pages reçues pendant une numérisation, en attente de la détection automatique des codes-barres.
+        // Accédé depuis le fil de numérisation et le fil de l'interface : toujours sous lock(barcodeAutoPending).
+        private readonly List<ScannedImage> barcodeAutoPending = new List<ScannedImage>();
+
+        /// <summary>
+        /// Lance en arrière-plan la détection des codes-barres sur les pages de la numérisation qui vient de se terminer.
+        /// Ne fait rien si l'option est désactivée (l'utilisateur peut toujours lancer la détection à la main).
+        /// Le statut s'affiche dans le widget de progression en bas à droite, comme les autres traitements en fond.
+        /// </summary>
+        private void RunAutoBarcodeDetection()
+        {
+            List<ScannedImage> images;
+            lock (barcodeAutoPending)
+            {
+                images = barcodeAutoPending.ToList();
+                barcodeAutoPending.Clear();
+            }
+            if (images.Count == 0 || !userConfigManager.Config.BarcodeAutoDetectAfterScan)
+            {
+                return;
+            }
+
+            var op = operationFactory.Create<barCodeOperation>();
+            // Le texte du code-barres de la page sélectionnée doit se rafraîchir dès que la détection se termine
+            op.Finished += (sender, args) => SafeInvokeAsync(() => DisplaySelectedItem_info());
+            if (op.Start(images))
+            {
+                operationProgress.ShowBackgroundProgress(op);
+                changeTracker.Made();
+            }
         }
 
         // A page waiting for the UI, plus the page it followed when it was received (used for placement)
@@ -1310,8 +1355,9 @@ namespace NAPS2.WinForms
         {
             var form = FormFactory.Create<FProfiles>();
             BackgroundForm.UseImmersiveDarkMode(form.Handle, darkMode);
-            form.ImageCallback = ReceiveScannedImage();
+            form.ImageCallback = ReceiveScannedImage(true);
             form.ShowDialog();
+            RunAutoBarcodeDetection();
             updateProfileButton();
         }
 
@@ -1914,8 +1960,9 @@ namespace NAPS2.WinForms
         {
             var form = FormFactory.Create<FBatchScan>();
             BackgroundForm.UseImmersiveDarkMode(form.Handle, darkMode);
-            form.ImageCallback = ReceiveScannedImage();
+            form.ImageCallback = ReceiveScannedImage(true);
             form.ShowDialog();
+            RunAutoBarcodeDetection();
             updateProfileButton();
         }
 

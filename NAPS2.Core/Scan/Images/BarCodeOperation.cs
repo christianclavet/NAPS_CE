@@ -53,7 +53,22 @@ namespace NAPS2.Scan.Images
                         return null;
                     }
                     memoryLimitingSem.WaitOne();
-                    Bitmap bitmap = scannedImageRenderer.Render(img).Result;
+                    Bitmap bitmap;
+                    try
+                    {
+                        bitmap = scannedImageRenderer.Render(img).Result;
+                    }
+                    catch (Exception e) when (e is ObjectDisposedException || e.InnerException is ObjectDisposedException)
+                    {
+                        // La page a été supprimée pendant la détection en arrière-plan : on l'ignore
+                        memoryLimitingSem.Release();
+                        lock (this)
+                        {
+                            Status.CurrentProgress += 1;
+                        }
+                        InvokeStatusChanged();
+                        return null;
+                    }
                     try
                     {
                         if (CancelToken.IsCancellationRequested)

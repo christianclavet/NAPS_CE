@@ -18,6 +18,7 @@ namespace NAPS2.WinForms
         protected override void OnLoad(object sender, EventArgs eventArgs)
         {
             var config = userConfigManager.Config;
+            cbAutoDetect.Checked = config.BarcodeAutoDetectAfterScan;
             cbEnableFilter.Checked = config.BarcodeFilterEnabled;
             txtPattern.Text = config.BarcodeFilterPattern ?? "";
             UpdateControls();
@@ -55,6 +56,7 @@ namespace NAPS2.WinForms
             }
 
             var config = userConfigManager.Config;
+            config.BarcodeAutoDetectAfterScan = cbAutoDetect.Checked;
             config.BarcodeFilterEnabled = cbEnableFilter.Checked;
             config.BarcodeFilterPattern = pattern;
             userConfigManager.Save();
