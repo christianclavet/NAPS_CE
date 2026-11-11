@@ -19,6 +19,9 @@ namespace NAPS2.WinForms
         {
             var config = userConfigManager.Config;
             cbAutoDetect.Checked = config.BarcodeAutoDetectAfterScan;
+            cbDetectMultiple.Checked = config.BarcodeDetectMultiple;
+            cbCreateDocument.Checked = config.BarcodeCreateDocument;
+            cbRemoveSeparator.Checked = config.BarcodeRemoveSeparatorSheet;
             cbEnableFilter.Checked = config.BarcodeFilterEnabled;
             txtPattern.Text = config.BarcodeFilterPattern ?? "";
             UpdateControls();
@@ -27,6 +30,13 @@ namespace NAPS2.WinForms
         private void UpdateControls()
         {
             txtPattern.Enabled = lblPattern.Enabled = cbEnableFilter.Checked;
+            // La suppression de la feuille séparatrice n'a de sens que si un document est créé
+            cbRemoveSeparator.Enabled = cbCreateDocument.Checked;
+        }
+
+        private void cbCreateDocument_CheckedChanged(object sender, EventArgs e)
+        {
+            UpdateControls();
         }
 
         private void cbEnableFilter_CheckedChanged(object sender, EventArgs e)
@@ -57,6 +67,9 @@ namespace NAPS2.WinForms
 
             var config = userConfigManager.Config;
             config.BarcodeAutoDetectAfterScan = cbAutoDetect.Checked;
+            config.BarcodeDetectMultiple = cbDetectMultiple.Checked;
+            config.BarcodeCreateDocument = cbCreateDocument.Checked;
+            config.BarcodeRemoveSeparatorSheet = cbCreateDocument.Checked && cbRemoveSeparator.Checked;
             config.BarcodeFilterEnabled = cbEnableFilter.Checked;
             config.BarcodeFilterPattern = pattern;
             userConfigManager.Save();

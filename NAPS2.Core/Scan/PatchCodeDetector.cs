@@ -144,11 +144,20 @@ namespace NAPS2.Scan
 
         // Nombre maximal de candidats redressés soumis à ZXing
         private const int MaxLocatorCandidates = 6;
+        // Avec DetectMultiple : plus de candidats, puisqu'on cherche tous les codes de la page
+        private const int MaxLocatorCandidatesMultiple = 12;
+
+        /// <summary>
+        /// Vrai : tous les candidats sont lus et chaque code différent est retourné (dans l'ordre de lecture).
+        /// Faux (défaut) : arrêt au premier candidat lu, plus rapide quand la page n'a qu'un code.
+        /// </summary>
+        public static bool DetectMultiple { get; set; }
 
         /// <summary>
         /// Localise les codes (forme + inclinaison), les redresse et les soumet à ZXing.
         /// Deux passes par candidat : lecture rapide (sans TryHarder), puis lecture approfondie seulement si besoin.
-        /// S'arrête au premier candidat qui donne un résultat.
+        /// Sans DetectMultiple, s'arrête au premier candidat qui donne un résultat. Avec DetectMultiple, lit tous
+        /// les candidats et retourne chaque texte une seule fois.
         /// </summary>
         private static Result[] DecodeLocatedRegions(Bitmap bitmap, BarcodeReader hardReader)
         {
@@ -158,28 +167,46 @@ namespace NAPS2.Scan
                 Options = new ZXing.Common.DecodingOptions { TryHarder = false, TryInverted = false }
             };
 
-            List<LocatedBarcode> candidates = BarcodeLocator.LocateDetailed(bitmap, MaxLocatorCandidates);
+            bool multiple = DetectMultiple;
+            var found = new List<Result>();
+            var seenTexts = new HashSet<string>();
+
+            List<LocatedBarcode> candidates = BarcodeLocator.LocateDetailed(bitmap, multiple ? MaxLocatorCandidatesMultiple : MaxLocatorCandidates);
             try
             {
                 // Passe rapide sur tous les candidats (le meilleur score en premier)
+                var unread = new List<LocatedBarcode>();
                 foreach (LocatedBarcode candidate in candidates)
                 {
                     Result[] results = ReadCandidate(fastReader, candidate);
-                    if (results != null)
+                    if (results == null)
+                    {
+                        unread.Add(candidate);
+                    }
+                    else if (!multiple)
                     {
                         return results;
                     }
+                    else
+                    {
+                        AddNewTexts(found, seenTexts, results);
+                    }
                 }
-                // Passe approfondie : seulement si la passe rapide n'a rien lu (et si TryHarder est actif)
+                // Passe approfondie : seulement sur les candidats que la passe rapide n'a pas lus (et si TryHarder est actif)
                 if (UseTryHarder)
                 {
-                    foreach (LocatedBarcode candidate in candidates)
+                    foreach (LocatedBarcode candidate in unread)
                     {
                         Result[] results = ReadCandidate(hardReader, candidate);
-                        if (results != null)
+                        if (results == null)
+                        {
+                            continue;
+                        }
+                        if (!multiple)
                         {
                             return results;
                         }
+                        AddNewTexts(found, seenTexts, results);
                     }
                 }
             }
@@ -191,12 +218,35 @@ namespace NAPS2.Scan
                 }
             }
 
+            if (found.Count > 0)
+            {
+                return found.ToArray();
+            }
             return UseLegacyFallback ? DecodeLegacyRegions(bitmap, hardReader) : null;
+        }
+
+        // Ajoute les lectures dont le texte n'a pas encore été vu (un même code peut être trouvé par deux candidats)
+        private static void AddNewTexts(List<Result> found, HashSet<string> seenTexts, Result[] results)
+        {
+            foreach (Result result in results)
+            {
+                if (result.Text != null && seenTexts.Add(result.Text))
+                {
+                    found.Add(result);
+                }
+            }
         }
 
         private static Result[] ReadCandidate(BarcodeReader reader, LocatedBarcode candidate)
         {
             Result[] results = reader.DecodeMultiple(candidate.Image);
+            // Le filtre de format s'applique ici : un candidat qui ne donne qu'un code refusé compte comme non lu,
+            // et la recherche continue sur les autres candidats (avant, la recherche s'arrêtait sur ce code refusé)
+            if (results != null && !string.IsNullOrEmpty(RequiredFormatPattern))
+            {
+                string pattern = RequiredFormatPattern;
+                results = results.Where(r => System.Text.RegularExpressions.Regex.IsMatch(r.Text ?? "", pattern)).ToArray();
+            }
             if (results != null && results.Length > 0)
             {
                 Debug.WriteLine("Code lu (angle " + candidate.AngleDegrees.ToString("F1") + ", centre " + candidate.Center + ") : " + results[0].Text);

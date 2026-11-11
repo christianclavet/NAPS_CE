@@ -97,5 +97,16 @@ namespace NAPS2.Config
         // Désactivé par défaut : l'utilisateur peut aussi lancer la détection à la main (menu Image).
         public bool BarcodeAutoDetectAfterScan { get; set; }
 
+        // Lit tous les codes-barres d'une page au lieu de s'arrêter au premier. Les valeurs sont séparées par ^.
+        public bool BarcodeDetectMultiple { get; set; }
+
+        // Une page où un code-barres est lu commence un nouveau document, nommé d'après le code.
+        // Les pages suivantes font partie de ce document jusqu'au prochain code.
+        public bool BarcodeCreateDocument { get; set; }
+
+        // Avec BarcodeCreateDocument : la feuille séparatrice (recto et verso) est supprimée,
+        // et la page qui la suit commence le document.
+        public bool BarcodeRemoveSeparatorSheet { get; set; }
+
     }
 }

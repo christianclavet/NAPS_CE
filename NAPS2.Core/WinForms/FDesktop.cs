@@ -1063,9 +1063,8 @@ namespace NAPS2.WinForms
                 return;
             }
 
-            var op = operationFactory.Create<barCodeOperation>();
-            // Le texte du code-barres de la page sélectionnée doit se rafraîchir dès que la détection se termine
-            op.Finished += (sender, args) => SafeInvokeAsync(() => DisplaySelectedItem_info());
+            // À la fin : documents créés selon les codes lus (si l'option est active) et texte du code rafraîchi
+            var op = CreateBarcodeOperation(images);
             if (op.Start(images))
             {
                 operationProgress.ShowBackgroundProgress(op);
@@ -1422,6 +1421,8 @@ namespace NAPS2.WinForms
             if (imageList.Images.Count > 0)
             {
                 ClearPreviewPrefetch();
+                // Un document en attente appartenait au projet fermé
+                pendingBarcodeDocumentName = null;
                 if (skiprequest) 
                 {
                     tiffViewerCtl1.Image = null;
@@ -3342,6 +3343,199 @@ namespace NAPS2.WinForms
         #endregion
 
         #region Documents
+
+        // Nom du document à commencer à la première page de la prochaine numérisation : la feuille séparatrice
+        // supprimée était la dernière page, il n'y avait pas encore de page pour commencer son document.
+        // Utilisé seulement sur le fil de l'interface.
+        private string pendingBarcodeDocumentName;
+
+        // Extension ajoutée au nom tiré d'un code-barres : GroupRefresh lit le nom avec
+        // Path.GetFileNameWithoutExtension, qui retirerait sinon tout ce qui suit le dernier point du code.
+        private const string BarcodeDocumentNameSuffix = ".barcode";
+
+        /// <summary>
+        /// Nom de document tiré du texte lu (plusieurs codes : séparés par ^). Les caractères interdits dans un nom
+        /// de fichier sont remplacés : le nom sert aussi aux exports, et Path.GetFileNameWithoutExtension
+        /// (utilisé par GroupRefresh) plante sur ces caractères.
+        /// </summary>
+        private static string BarcodeDocumentName(string barcodeData)
+        {
+            var invalid = Path.GetInvalidFileNameChars();
+            var name = new string((barcodeData ?? "").Select(c => invalid.Contains(c) ? '_' : c).ToArray()).Trim();
+            return name + BarcodeDocumentNameSuffix;
+        }
+
+        // Fait commencer un nouveau document à cette page (comme le menu « Ajouter un document »)
+        private static void MarkDocumentStart(ScannedImage image, string separatorName)
+        {
+            image.Separator = true;
+            image.RecoveryIndexImage.isSeparator = true;
+            image.RecoveryIndexImage.SeparatorName = separatorName;
+            image.Save();
+        }
+
+        // Pages de la feuille (recto et verso) dont fait partie la page index, dans la liste images
+        private static void GetSheetRange(List<ScannedImage> images, int index, out int first, out int last)
+        {
+            first = last = index;
+            // SheetSide : 1 = recto d'une feuille recto-verso, 2 = son verso, autre = recto seul
+            if (images[index].SheetSide == 1 && index + 1 < images.Count && images[index + 1].SheetSide == 2)
+            {
+                last = index + 1;
+            }
+            else if (images[index].SheetSide == 2 && index > 0 && images[index - 1].SheetSide == 1)
+            {
+                first = index - 1;
+            }
+        }
+
+        /// <summary>
+        /// Option « Créer un nouveau document quand un code-barres est détecté » : appelée sur le fil de l'interface
+        /// quand une détection se termine, avec les pages où un code a été lu.
+        /// Chaque page avec un code commence un document nommé d'après le code ; les pages suivantes en font partie
+        /// jusqu'au prochain code. Avec « Supprimer la feuille séparatrice », la feuille (recto et verso) est supprimée
+        /// et c'est la page qui la suit qui commence le document.
+        /// </summary>
+        private void CreateDocumentsFromBarcodes(List<ScannedImage> pagesWithBarcode)
+        {
+            var config = userConfigManager.Config;
+            if (closed || !config.BarcodeCreateDocument || pagesWithBarcode == null || pagesWithBarcode.Count == 0)
+            {
+                return;
+            }
+
+            List<ScannedImage> images;
+            lock (imageList)
+            {
+                images = imageList.Images.ToList();
+            }
+            var withBarcode = new HashSet<ScannedImage>(pagesWithBarcode);
+            // Dans l'ordre des pages (la détection en parallèle les trouve dans le désordre).
+            // Une page supprimée entre-temps n'est plus dans la liste et est ignorée.
+            var codeIndices = Enumerable.Range(0, images.Count).Where(i => withBarcode.Contains(images[i])).ToList();
+            if (codeIndices.Count == 0)
+            {
+                return;
+            }
+
+            var toDelete = new SortedSet<int>();
+            if (!config.BarcodeRemoveSeparatorSheet)
+            {
+                foreach (int i in codeIndices)
+                {
+                    MarkDocumentStart(images[i], BarcodeDocumentName(images[i].BarCodeData));
+                }
+            }
+            else
+            {
+                // Page qui commence chaque document, et son nom. Deux feuilles séparatrices de suite :
+                // la seconde l'emporte (le document de la première serait vide).
+                var documentStarts = new SortedDictionary<int, string>();
+                var sheets = new List<(int Last, string Name)>();
+                foreach (int i in codeIndices)
+                {
+                    if (toDelete.Contains(i))
+                    {
+                        // Code aussi lu sur l'autre face d'une feuille déjà traitée
+                        continue;
+                    }
+                    GetSheetRange(images, i, out int first, out int last);
+                    for (int k = first; k <= last; k++)
+                    {
+                        toDelete.Add(k);
+                    }
+                    sheets.Add((last, BarcodeDocumentName(images[i].BarCodeData)));
+                }
+                foreach (var (last, name) in sheets)
+                {
+                    int start = last + 1;
+                    while (start < images.Count && toDelete.Contains(start))
+                    {
+                        start++;
+                    }
+                    if (start < images.Count)
+                    {
+                        documentStarts[start] = name;
+                    }
+                    else
+                    {
+                        // La feuille est la dernière page : le document commencera avec la prochaine numérisation
+                        pendingBarcodeDocumentName = name;
+                    }
+                }
+                foreach (var start in documentStarts)
+                {
+                    MarkDocumentStart(images[start.Key], start.Value);
+                }
+            }
+
+            if (toDelete.Count > 0)
+            {
+                // Comme la suppression manuelle (Delete) : fichiers, index et liste restent cohérents
+                bool previewDeleted = SelectedIndices.Any(toDelete.Contains);
+                if (previewDeleted)
+                {
+                    tiffViewerCtl1.Image = null;
+                }
+                imageList.Delete(toDelete.ToList());
+                DeleteThumbnails();
+            }
+            thumbnailList1.GroupRefresh(imageList.Images);
+            thumbnailList1.UpdateDescriptions(imageList.Images, Color.Black);
+            changeTracker.Made();
+            UpdateToolbar();
+            DisplaySelectedItem_info();
+        }
+
+        /// <summary>
+        /// Crée la détection des codes-barres ; à la fin, crée les documents si l'option est active.
+        /// scannedPages : les pages d'une numérisation (détection automatique), pour y commencer le document en attente.
+        /// Fait à la fin de la détection : à ce moment, toutes les pages de la numérisation sont dans la liste.
+        /// </summary>
+        private barCodeOperation CreateBarcodeOperation(List<ScannedImage> scannedPages = null)
+        {
+            var op = operationFactory.Create<barCodeOperation>();
+            op.Finished += (sender, args) => SafeInvokeAsync(() =>
+            {
+                if (scannedPages != null)
+                {
+                    ApplyPendingBarcodeDocument(scannedPages);
+                }
+                CreateDocumentsFromBarcodes(op.ImagesWithBarcode);
+                // Le texte du code-barres de la page sélectionnée doit se rafraîchir dès que la détection se termine
+                DisplaySelectedItem_info();
+            });
+            return op;
+        }
+
+        // Le document en attente (feuille séparatrice supprimée en fin de numérisation) commence à la première page
+        // de cette numérisation
+        private void ApplyPendingBarcodeDocument(List<ScannedImage> scannedPages)
+        {
+            if (pendingBarcodeDocumentName == null || scannedPages.Count == 0)
+            {
+                return;
+            }
+            if (!userConfigManager.Config.BarcodeCreateDocument)
+            {
+                pendingBarcodeDocumentName = null;
+                return;
+            }
+            var first = scannedPages[0];
+            bool stillThere;
+            lock (imageList)
+            {
+                stillThere = imageList.Images.Contains(first);
+            }
+            if (stillThere)
+            {
+                MarkDocumentStart(first, pendingBarcodeDocumentName);
+                pendingBarcodeDocumentName = null;
+                thumbnailList1.GroupRefresh(imageList.Images);
+                thumbnailList1.UpdateDescriptions(imageList.Images, Color.Black);
+            }
+        }
+
         private void tsiDocumentAdd_Click(object sender, EventArgs e)
         {
             //Define a selected image as the start of a new document
@@ -3708,6 +3902,8 @@ namespace NAPS2.WinForms
         private void ResetWorkspaceToNew()
         {
             ClearPreviewPrefetch();
+            // Un document en attente appartenait au projet fermé
+            pendingBarcodeDocumentName = null;
             bitmap = null;
             tiffViewerCtl1.Image = null;
             DeleteThumbnails();
@@ -3832,7 +4028,8 @@ namespace NAPS2.WinForms
                 list = imageList.Images.ToList();
             }
 
-            var op = operationFactory.Create<barCodeOperation>();
+            // La détection lancée à la main crée aussi les documents si l'option est active
+            var op = CreateBarcodeOperation();
             if (op.Start(list))
             {
                 operationProgress.ShowProgress(op);

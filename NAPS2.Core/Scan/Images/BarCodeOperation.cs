@@ -27,6 +27,24 @@ namespace NAPS2.Scan.Images
             AllowBackground = true;
         }
 
+        // Pages de cette détection où au moins un code a été lu (après le filtre de format)
+        private readonly List<ScannedImage> imagesWithBarcode = new List<ScannedImage>();
+
+        /// <summary>
+        /// Pages où cette détection a lu au moins un code. Complet une fois l'opération terminée
+        /// (y compris annulée : seulement les pages traitées avant l'annulation).
+        /// </summary>
+        public List<ScannedImage> ImagesWithBarcode
+        {
+            get
+            {
+                lock (imagesWithBarcode)
+                {
+                    return imagesWithBarcode.ToList();
+                }
+            }
+        }
+
         public bool Start(ICollection<ScannedImage> images)
         {
             // Applique le filtre de format choisi dans les réglages, avant le traitement parallèle
@@ -34,6 +52,7 @@ namespace NAPS2.Scan.Images
             PatchCodeDetector.RequiredFormatPattern = config.BarcodeFilterEnabled && !string.IsNullOrWhiteSpace(config.BarcodeFilterPattern)
                 ? config.BarcodeFilterPattern
                 : null;
+            PatchCodeDetector.DetectMultiple = config.BarcodeDetectMultiple;
 
             ProgressTitle = MiscResources.BarcodeTitle;
             Status = new OperationStatus
@@ -80,10 +99,17 @@ namespace NAPS2.Scan.Images
                         lock (img)
                         {
                             img.BarCodeData = PatchCodeDetector.DetectBarcode(bitmap);
-                            if (img.BarCodeData != null) 
+                            if (img.BarCodeData != null)
                             {
                                 img.RecoveryIndexImage.BarCode = img.BarCodeData;
                                 img.Update(img.BarCodeData);
+                            }
+                        }
+                        if (!string.IsNullOrEmpty(img.BarCodeData))
+                        {
+                            lock (imagesWithBarcode)
+                            {
+                                imagesWithBarcode.Add(img);
                             }
                         }
 
