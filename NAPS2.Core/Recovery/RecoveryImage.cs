@@ -445,6 +445,7 @@ namespace NAPS2.Recovery
                 if (folderVersion == FolderVersion && _recoveryIndexManager != null && !DisableRecoveryCleanup && Volatile.Read(ref keepFilesCount) == 0 && File.Exists(FilePath))
                 {
                     File.Delete(FilePath);
+                    ThumbnailCache.Delete(FilePath);
                     lock (_recoveryIndexManager)
                     {
                         _recoveryIndexManager.Index.Images.Remove(IndexImage);

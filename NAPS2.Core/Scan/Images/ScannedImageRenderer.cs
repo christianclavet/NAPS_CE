@@ -39,12 +39,29 @@ namespace NAPS2.Scan.Images
         /// </summary>
         public Bitmap RenderNow(ScannedImage.Snapshot snapshot, int outputSize = 0)
         {
-            var bitmap = snapshot.Source.FileFormat == null
-                ? pdfRenderer.Render(snapshot.Source.RecoveryFilePath).Single()
-                : new Bitmap(snapshot.Source.RecoveryFilePath);
-            if (outputSize > 0)
+            var path = snapshot.Source.RecoveryFilePath;
+            Bitmap bitmap;
+            if (snapshot.Source.FileFormat == null)
             {
-                bitmap = ShrinkBitmap(bitmap, outputSize);
+                bitmap = pdfRenderer.Render(path).Single();
+                if (outputSize > 0)
+                {
+                    bitmap = ShrinkBitmap(bitmap, outputSize);
+                }
+            }
+            else
+            {
+                // Reduced size wanted (thumbnails): decode directly at that size when possible (much faster for JPEG)
+                bitmap = outputSize > 0 ? ScaledImageDecoder.TryDecode(path, outputSize) : null;
+                if (bitmap == null)
+                {
+                    // Loaded from memory: the page file is not kept locked while the bitmap is in use
+                    bitmap = new Bitmap(new MemoryStream(File.ReadAllBytes(path)));
+                    if (outputSize > 0)
+                    {
+                        bitmap = ShrinkBitmap(bitmap, outputSize);
+                    }
+                }
             }
             return Transform.PerformAll(bitmap, snapshot.TransformList);
         }

@@ -22,6 +22,12 @@ using System.Runtime.InteropServices;
 // COM, set the ComVisible attribute to true on that type.
 [assembly: ComVisible(false)]
 
+// The application is not DPI-aware (see app.manifest): Windows scales it on high-DPI screens.
+// The thumbnail decoder uses WPF (WIC), and WPF makes the whole process DPI-aware the first time it is used,
+// which made the window lose its scaling (everything became small on a 4K screen) when a project was loaded.
+// WPF reads this attribute on the entry assembly and then leaves the DPI awareness unchanged.
+[assembly: System.Windows.Media.DisableDpiAwareness]
+
 // The following GUID is for the ID of the typelib if this project is exposed to COM
 [assembly: Guid("1c3a7177-f3a7-439e-be47-e304a185f932")]
 

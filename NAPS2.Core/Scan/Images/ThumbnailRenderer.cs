@@ -15,6 +15,8 @@ namespace NAPS2.Scan.Images
         public const int DEFAULT_SIZE = 128;
         public static int MAX_SIZE = 1024;
 
+        // Pages are decoded at 3x the thumbnail size (directly at that size for JPEG, see ScaledImageDecoder),
+        // then transformed and drawn into the thumbnail: good quality without decoding the full page.
         private const int OVERSAMPLE = 3;
 
         public static double StepNumberToSize(double stepNumber)
@@ -76,7 +78,7 @@ namespace NAPS2.Scan.Images
 
         public async Task<Bitmap> RenderThumbnail(ScannedImage.Snapshot snapshot, int size)
         {
-            using (var bitmap = await scannedImageRenderer.Render(snapshot, snapshot.TransformList.Count == 0 ? 0 : size * OVERSAMPLE))
+            using (var bitmap = await scannedImageRenderer.Render(snapshot, size * OVERSAMPLE))
             {
                 return RenderThumbnail(bitmap, size);
             }
@@ -88,7 +90,7 @@ namespace NAPS2.Scan.Images
         /// </summary>
         public Bitmap RenderThumbnailNow(ScannedImage.Snapshot snapshot, int size)
         {
-            using (var bitmap = scannedImageRenderer.RenderNow(snapshot, snapshot.TransformList.Count == 0 ? 0 : size * OVERSAMPLE))
+            using (var bitmap = scannedImageRenderer.RenderNow(snapshot, size * OVERSAMPLE))
             {
                 return RenderThumbnail(bitmap, size);
             }

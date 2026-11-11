@@ -388,7 +388,7 @@ namespace NAPS2.WinForms
             InitializeComponent();
             PostInitializeComponent();
             
-            Task.Run (() => AddThumbnails());
+            AddThumbnails();
             notify.Rebuild();
             Focus();
             WindowState = FormWindowState.Normal;
@@ -435,7 +435,7 @@ namespace NAPS2.WinForms
             // Allow scanned images to be recovered in case of an unexpected close
             CheckUnfinishedWorkFolders();
 
-            new Thread(RenderThumbnails).Start();
+            StartThumbnailRendering();
 
             // If NAPS2 was started by the scanner button, do the appropriate actions automatically
             await RunStillImageEvents();
@@ -689,15 +689,32 @@ namespace NAPS2.WinForms
 
         private IEnumerable<int> SelectedIndices
         {
-            get => thumbnailList1.SelectedIndices.Cast<int>();
+            // A copy: the native selection is read once, not again for every Count()/Any()/First() of the caller
+            get => thumbnailList1.SelectedIndices.Cast<int>().ToArray();
             set
             {
-                thumbnailList1.SelectedIndices.Clear();
-                foreach (int i in value)
+                // Read before clearing: the new selection may be computed from the current one
+                var indices = value.ToList();
+                int count = thumbnailList1.Items.Count;
+                // Every Add raises SelectedIndexChanged: they are ignored here and the update runs once at the end
+                selectionChanging = true;
+                try
                 {
-                    thumbnailList1.SelectedIndices.Add(i);
+                    thumbnailList1.SelectedIndices.Clear();
+                    foreach (int i in indices)
+                    {
+                        // An index without an item (not created yet) used to throw here
+                        if (i >= 0 && i < count)
+                        {
+                            thumbnailList1.SelectedIndices.Add(i);
+                        }
+                    }
                 }
-                ThumbnailList1_SelectedIndexChanged(thumbnailList1, new EventArgs());
+                finally
+                {
+                    selectionChanging = false;
+                }
+                DisplaySelectedItem_info();
             }
         }
 
@@ -721,37 +738,93 @@ namespace NAPS2.WinForms
             }
         }
 
+        // Preview: the page and version (transform state) currently shown in the viewer, and the latest request.
+        // All of these, like previewPrefetch, are only used on the UI thread.
+        private ScannedImage previewSource;
+        private int previewState = -1;
+        private int previewRequest;
+
+        // Pages next to the one shown (previous and next), rendered in advance so moving through the pages is instant
+        private readonly Dictionary<ScannedImage, (int State, Task<Bitmap> Render)> previewPrefetch =
+            new Dictionary<ScannedImage, (int State, Task<Bitmap> Render)>();
+
         private async void GetPreviewImage(ScannedImage img, bool updateGUI)
         {
             if (updateGUI == false)
                 return;
 
-            // Try something to stop the file lock
-            Bitmap bit = await scannedImageRenderer.Render(img);
-            bitmap = new Bitmap(bit);
-            bitmap.SetResolution(bit.HorizontalResolution, bit.VerticalResolution);
-            bit.Dispose();
-
-            // put the image inside the preview
-            if (bitmap != null & updateGUI == true)
+            int request = ++previewRequest;
+            Task<Bitmap> render;
+            int state;
+            try
             {
-                bool frontpage = true;
-               // if (img.SheetSide == 2)
-               //     frontpage = false;
-
-                setPreviewImage(bitmap, frontpage);
+                using (var snapshot = img.Preserve())
+                {
+                    state = snapshot.TransformState;
+                }
+                // Same page and same version already shown (e.g. its thumbnail was just rendered): nothing to do
+                if (ReferenceEquals(img, previewSource) && state == previewState && bitmap != null && ReferenceEquals(tiffViewerCtl1.Image, bitmap))
+                {
+                    return;
+                }
+                render = TakePrefetchedPreview(img, state) ?? RenderPreview(img, out state);
+            }
+            catch (ObjectDisposedException)
+            {
+                // The page was removed
+                return;
             }
 
-            if (bitmap != null)
+            Bitmap result;
+            try
             {
-                Size size = bitmap.Size;
+                result = await render;
+            }
+            catch (Exception e)
+            {
+                Log.ErrorException("Error rendering the preview", e);
+                return;
+            }
+
+            // Another page was selected meanwhile: only the latest request is shown
+            if (request != previewRequest || closed)
+            {
+                result.Dispose();
+                return;
+            }
+
+            var old = bitmap;
+            bitmap = result;
+            previewSource = img;
+            previewState = state;
+            setPreviewImage(bitmap, true);
+            // The previous preview is no longer shown (it was never freed before)
+            if (old != null && !ReferenceEquals(old, bitmap))
+            {
+                old.Dispose();
+            }
+
+            UpdatePreviewInfo(img, bitmap);
+            // The status bar was written before the size and format were known
+            if (SelectedIndices.Count() == 1 && ReferenceEquals(SelectedImages.FirstOrDefault(), img))
+            {
+                DisplaySelectedItem_info(true);
+            }
+
+            PrefetchNeighbourPreviews(img);
+        }
+
+        private static void UpdatePreviewInfo(ScannedImage img, Bitmap bmp)
+        {
+            if (bmp != null)
+            {
+                Size size = bmp.Size;
                 img.infoResolution = size.Width + " px X " + size.Height + " px ";
 
-                //
-                string dpi = Math.Round(bitmap.HorizontalResolution).ToString();
+                string dpi = Math.Round(bmp.HorizontalResolution).ToString();
 
                 string format = "Format: ";
-                format = bitmap.PixelFormat switch
+                format = bmp.PixelFormat switch
                 {
                     PixelFormat.Format24bppRgb => format + "Color 24bit, DPI: " + dpi,
                     PixelFormat.Format32bppArgb => format + "Color 32bit, DPI: " + dpi,
@@ -760,13 +833,109 @@ namespace NAPS2.WinForms
                     _ => "DPI: " + dpi,
                 };
                 img.infoFormat = format;
-            }   else
+            }
+            else
             {
-                //img.BarCodeData = "";
                 img.infoResolution = "";
                 img.infoFormat = "";
             }
+        }
 
+        // Starts rendering the full page in the background. The page file is read into memory (see
+        // ScannedImageRenderer.RenderNow): no file lock is kept, so the bitmap no longer needs to be copied.
+        private Task<Bitmap> RenderPreview(ScannedImage img, out int state)
+        {
+            var snapshot = img.Preserve();
+            state = snapshot.TransformState;
+            return Task.Run(() =>
+            {
+                using (snapshot)
+                {
+                    return scannedImageRenderer.RenderNow(snapshot);
+                }
+            });
+        }
+
+        // Returns the page rendered in advance if it is still the same version, otherwise null
+        private Task<Bitmap> TakePrefetchedPreview(ScannedImage img, int state)
+        {
+            if (previewPrefetch.TryGetValue(img, out var entry))
+            {
+                previewPrefetch.Remove(img);
+                if (entry.State == state)
+                {
+                    return entry.Render;
+                }
+                DisposeWhenRendered(entry.Render);
+            }
+            return null;
+        }
+
+        private void PrefetchNeighbourPreviews(ScannedImage img)
+        {
+            var wanted = new List<ScannedImage>();
+            lock (imageList)
+            {
+                int index = imageList.Images.IndexOf(img);
+                if (index == -1)
+                {
+                    return;
+                }
+                if (index + 1 < imageList.Images.Count)
+                {
+                    wanted.Add(imageList.Images[index + 1]);
+                }
+                if (index > 0)
+                {
+                    wanted.Add(imageList.Images[index - 1]);
+                }
+            }
+
+            // Only the two neighbours are kept: a full page takes a lot of memory
+            foreach (var key in previewPrefetch.Keys.Where(x => !wanted.Contains(x)).ToList())
+            {
+                DisposeWhenRendered(previewPrefetch[key].Render);
+                previewPrefetch.Remove(key);
+            }
+            foreach (var page in wanted)
+            {
+                if (previewPrefetch.ContainsKey(page))
+                {
+                    // Already rendered or rendering (its version is checked when it is taken)
+                    continue;
+                }
+                try
+                {
+                    var task = RenderPreview(page, out int pageState);
+                    previewPrefetch[page] = (pageState, task);
+                }
+                catch (ObjectDisposedException)
+                {
+                    // The page was removed
+                }
+            }
+        }
+
+        private void ClearPreviewPrefetch()
+        {
+            foreach (var entry in previewPrefetch.Values)
+            {
+                DisposeWhenRendered(entry.Render);
+            }
+            previewPrefetch.Clear();
+            previewSource = null;
+            previewState = -1;
+        }
+
+        private static void DisposeWhenRendered(Task<Bitmap> render)
+        {
+            render.ContinueWith(t =>
+            {
+                if (t.Status == TaskStatus.RanToCompletion)
+                {
+                    t.Result.Dispose();
+                }
+            });
         }
 
         // Recovered pages are buffered and added to the UI in batches, instead of one UI round-trip per page
@@ -814,7 +983,7 @@ namespace NAPS2.WinForms
                         image.ThumbnailChanged += ImageThumbnailChanged;
                         image.ThumbnailInvalidated += ImageThumbnailInvalidated;
                     }
-                    Task.Run(() => AddThumbnails());
+                    AddThumbnails();
                 }
                 UpdateToolbar();
                 changeTracker.Made();
@@ -952,7 +1121,7 @@ namespace NAPS2.WinForms
             if (pendingThumbnailRefresh)
             {
                 // A single thumbnail refresh covers every page added in this batch
-                Task.Run(() => AddThumbnails());
+                AddThumbnails();
             }
             if (anyPlaced)
             {
@@ -1016,33 +1185,32 @@ namespace NAPS2.WinForms
             }
         }
 
-        private async Task AddThumbnails()
+        /// <summary>
+        /// Creates the list items (and icons) of the pages added to imageList. Runs synchronously on the UI thread:
+        /// it used to run later (Task.Run then Invoke), so a thumbnail or a selection could refer to an item
+        /// that did not exist yet. That threw in the middle of a BeginUpdate (the list then stopped redrawing)
+        /// and the thumbnail was lost (the page kept its hourglass).
+        /// </summary>
+        private void AddThumbnails()
         {
-            Color fore = Color.Black;
-
-            await Task.Run(() => 
+            if (InvokeRequired)
             {
+                SafeInvoke(AddThumbnails);
+                return;
+            }
+            if (closed)
+            {
+                return;
+            }
+            lock (imageList)
+            {
+                thumbnailList1.AddedImages(imageList.Images, Color.Black, recover);
+            }
 
-                thumbnailList1.Invoke(() =>
-                {
-                    thumbnailList1.AddedImages(imageList.Images, fore, recover);
-
-                    if (thumbnailList1.Items.Count > 5 && !SelectedIndices.Any() && !recover)
-                        thumbnailList1.EnsureVisible(thumbnailList1.Items.Count - 1);
-
-                });
-                //if (!recover)
-                //    GetPreviewImage(imageList.Images[imageList.Images.Count-1], true);
-
-                //Scroll the list so that every new item that get added can be viewed. -CC
-                //Should not do it if a selection is active.
-                thumbnailList1.Invoke(() =>
-                {
-                    if (thumbnailList1.Items.Count > 5 && !SelectedIndices.Any() && !recover)
-                    thumbnailList1.EnsureVisible(thumbnailList1.Items.Count - 1);
-                });
-
-            });
+            //Scroll the list so that every new item that get added can be viewed. -CC
+            //Should not do it if a selection is active.
+            if (thumbnailList1.Items.Count > 5 && thumbnailList1.SelectedIndices.Count == 0 && !recover)
+                thumbnailList1.EnsureVisible(thumbnailList1.Items.Count - 1);
         }
 
         private void DeleteThumbnails()
@@ -1075,45 +1243,93 @@ namespace NAPS2.WinForms
             }
         }
 
+        // Pages whose icon must be redrawn. Filled from any thread, applied in one pass on the UI thread by the
+        // timer (FlushThumbnailUpdates). Before, every thumbnail posted its own message to the UI, which redrew the
+        // whole list; while thumbnails kept coming, Windows never got to repaint the list (posted messages go
+        // before painting), so the icons only appeared at the end.
+        private readonly HashSet<ScannedImage> pendingThumbnailUpdates = new HashSet<ScannedImage>();
+
         private void ImageThumbnailChanged(object sender, EventArgs e)
         {
-            SafeInvokeAsync(() =>
+            lock (pendingThumbnailUpdates)
             {
-                var image = (ScannedImage)sender;
-                lock (image)
-                {
-                    lock (imageList)
-                    {
-                        int index = imageList.Images.IndexOf(image);
-                        if (index != -1)
-                        {
-                            thumbnailList1.ReplaceThumbnail(index, image);
-                            if (SelectedIndices.FirstOrDefault() == index)  
-                                    GetPreviewImage(imageList.Images[index],true);
-                        }
-                    }
-                }
-            });
+                pendingThumbnailUpdates.Add((ScannedImage)sender);
+            }
         }
 
         private void ImageThumbnailInvalidated(object sender, EventArgs e)
         {
-            SafeInvokeAsync(() =>
+            var image = (ScannedImage)sender;
+            // The page changed: if its thumbnail had failed, try again
+            lock (failedThumbnails)
             {
-                var image = (ScannedImage)sender;
-                lock (image)
+                failedThumbnails.Remove(image);
+            }
+            // Shows the hourglass on the current icon until the new thumbnail is rendered
+            lock (pendingThumbnailUpdates)
+            {
+                pendingThumbnailUpdates.Add(image);
+            }
+            renderThumbnailsWaitHandle.Set();
+        }
+
+        // Runs on the UI thread (timer): redraws the icons of every page changed since the last pass
+        private void FlushThumbnailUpdates()
+        {
+            if (closed)
+            {
+                return;
+            }
+            List<ScannedImage> changed;
+            lock (pendingThumbnailUpdates)
+            {
+                if (pendingThumbnailUpdates.Count == 0)
                 {
-                    lock (imageList)
+                    return;
+                }
+                changed = pendingThumbnailUpdates.ToList();
+                pendingThumbnailUpdates.Clear();
+            }
+
+            var updates = new List<(int Index, ScannedImage Image)>(changed.Count);
+            lock (imageList)
+            {
+                var images = imageList.Images;
+                if (changed.Count <= 8)
+                {
+                    foreach (var image in changed)
                     {
-                        int index = imageList.Images.IndexOf(image);
-                        if (index != -1 && image.IsThumbnailDirty)
+                        updates.Add((images.IndexOf(image), image));
+                    }
+                }
+                else
+                {
+                    // Many pages at once: one pass over the list instead of one search per page
+                    var wanted = new HashSet<ScannedImage>(changed);
+                    for (int i = 0; i < images.Count; i++)
+                    {
+                        if (wanted.Contains(images[i]))
                         {
-                            thumbnailList1.ReplaceThumbnail(index, image);
+                            updates.Add((i, images[i]));
                         }
                     }
                 }
-                renderThumbnailsWaitHandle.Set();
-            });
+            }
+            thumbnailList1.ReplaceThumbnails(updates);
+
+            // The page shown in the preview changed: refresh it (GetPreviewImage skips it if the version is the same)
+            if (thumbnailList1.SelectedIndices.Count == 1)
+            {
+                int selected = thumbnailList1.SelectedIndices[0];
+                foreach (var (index, image) in updates)
+                {
+                    if (index == selected)
+                    {
+                        GetPreviewImage(image, true);
+                        break;
+                    }
+                }
+            }
         }
 
         #endregion
@@ -1122,11 +1338,16 @@ namespace NAPS2.WinForms
 
         public void UpdateToolbar()
         {
-            if (SelectedIndices.Any()) { }
+            // Read once: the selection count comes from the native ListView and this runs very often
+            int selectedCount = thumbnailList1.SelectedIndices.Count;
+            bool anySelected = selectedCount > 0;
+            bool anyImages = imageList.Images.Count > 0;
+
             //Rename the title to include the name of the current project.
             title = System.Windows.Forms.Application.ProductName.ToString() + " " + System.Windows.Forms.Application.ProductVersion.ToString();
-            if (Text!=null)
-                this.Text = title + " | " + MiscResources.ProjectNameTitle + projectName;
+            var windowTitle = title + " | " + MiscResources.ProjectNameTitle + projectName;
+            if (Text != null && Text != windowTitle)
+                this.Text = windowTitle;
             //this.Update();
 
             UpdateOcrButtons();
@@ -1134,33 +1355,33 @@ namespace NAPS2.WinForms
             // "All" dropdown items
             tsSavePDFAll.Text = tsSaveImagesAll.Text = tsReverseAll.Text =
                 string.Format(MiscResources.AllCount, imageList.Images.Count);
-            tsSavePDFAll.Enabled = tsSaveImagesAll.Enabled = tsReverseAll.Enabled = tsBarCodeCheck.Enabled = tsExport.Enabled = tsdDocument.Enabled = imageList.Images.Any();
+            tsSavePDFAll.Enabled = tsSaveImagesAll.Enabled = tsReverseAll.Enabled = tsBarCodeCheck.Enabled = tsExport.Enabled = tsdDocument.Enabled = anyImages;
 
             // "Selected" dropdown items
             tsSavePDFSelected.Text = tsSaveImagesSelected.Text = tsReverseSelected.Text =
-                string.Format(MiscResources.SelectedCount, SelectedIndices.Count());
+                string.Format(MiscResources.SelectedCount, selectedCount);
             tsSavePDFSelected.Enabled = tsSaveImagesSelected.Enabled = tsReverseSelected.Enabled = 
                 tsBlackWhite.Enabled = tsBrightnessContrast.Enabled = tsCrop.Enabled = tsMask.Enabled = tsHueSaturation.Enabled = 
                 printToolStripMenuItem.Enabled = tsReset.Enabled = tsSharpen.Enabled = tsView.Enabled = tsInsert.Enabled =
                 tsiDocumentAdd.Enabled = tsiDocumentRemove.Enabled = TS_BarcodeInfo.Enabled =
-                SelectedIndices.Any();
+                anySelected;
 
-            if (!imageList.Images.Any() && !SelectedIndices.Any())
+            if (!anyImages && !anySelected)
                 tsdImage.Enabled = false;
             else tsdImage.Enabled = true;
 
             // Top-level toolbar actions
-            tsdRotate.Enabled = tsDelete.Enabled = SelectedIndices.Any();
-            tsdReorder.Enabled = tsdSavePDF.Enabled = tsdSaveImages.Enabled = printToolStripMenuItem.Enabled = imageList.Images.Any();
+            tsdRotate.Enabled = tsDelete.Enabled = anySelected;
+            tsdReorder.Enabled = tsdSavePDF.Enabled = tsdSaveImages.Enabled = printToolStripMenuItem.Enabled = anyImages;
             
 
             // Context-menu actions
-            ctxView.Visible = ctxCopy.Visible = ctxDelete.Visible = ctxSeparator1.Visible = ctxSeparator2.Visible = SelectedIndices.Any();
-            ctxSelectAll.Enabled = imageList.Images.Any();
+            ctxView.Visible = ctxCopy.Visible = ctxDelete.Visible = ctxSeparator1.Visible = ctxSeparator2.Visible = anySelected;
+            ctxSelectAll.Enabled = anyImages;
 
             // Other
-            btnZoomIn.Enabled = imageList.Images.Any() && UserConfigManager.Config.ThumbnailSize < ThumbnailRenderer.MAX_SIZE;
-            btnZoomOut.Enabled = imageList.Images.Any() && UserConfigManager.Config.ThumbnailSize > ThumbnailRenderer.MIN_SIZE;
+            btnZoomIn.Enabled = anyImages && UserConfigManager.Config.ThumbnailSize < ThumbnailRenderer.MAX_SIZE;
+            btnZoomOut.Enabled = anyImages && UserConfigManager.Config.ThumbnailSize > ThumbnailRenderer.MIN_SIZE;
             tsNewProfile.Enabled = !(appConfigManager.Config.NoUserProfiles && profileManager.Profiles.Any(x => x.IsLocked));
 
             if (PlatformCompat.Runtime.RefreshListViewAfterChange)
@@ -1200,6 +1421,7 @@ namespace NAPS2.WinForms
         {
             if (imageList.Images.Count > 0)
             {
+                ClearPreviewPrefetch();
                 if (skiprequest) 
                 {
                     tiffViewerCtl1.Image = null;
@@ -1833,89 +2055,82 @@ namespace NAPS2.WinForms
 
         private void DisplaySelectedItem_info(bool minimum = false)
         {
+            // The selection is read once. Each SelectedIndices.Count()/First() enumerated the whole selection
+            // through the native ListView, a dozen times per call.
+            int selectedCount = thumbnailList1.SelectedIndices.Count;
+            int imageCount = imageList.Images.Count;
 
-            if (SelectedIndices.Count() < 1)
+            if (selectedCount < 1 || selectedCount > imageCount)
             {
                 statusStrip1.Items[0].Text = MiscResources.No_selection;
                 UpdateToolbar();
                 return;
             }
 
-            if (SelectedIndices.Count() > imageList.Images.Count())
+            if (selectedCount > 1)
+            {
+                statusStrip1.Items[0].Text = MiscResources.Selection + selectedCount.ToString();
+                UpdateToolbar();
+                return;
+            }
+
+            //If the index is invalid
+            int selected = thumbnailList1.SelectedIndices[0];
+            if (selected < 0 || selected > imageCount - 1)
             {
                 statusStrip1.Items[0].Text = MiscResources.No_selection;
                 UpdateToolbar();
                 return;
             }
 
-            if (SelectedIndices.Count() == 1)
-            {
+            var image = imageList.Images[selected];
+            String text = (selected + 1).ToString();
+            String text2 = image.infoResolution;
+            String text3 = image.BarCodeData;
 
-                //If the index is invalid
-                if (thumbnailList1.SelectedItems.Count < 1)
-                    return;
-
-                if (thumbnailList1.SelectedItems[0].Index < 0)
-                    return;
-
-                if (imageList.Images.Count-1 < SelectedIndices.First())
-                    return;
-
-                if (imageList.Images.Count-1 < thumbnailList1.SelectedItems[0].Index)
-                {
-                    statusStrip1.Items[0].Text = MiscResources.No_selection;
-                    UpdateToolbar();
-                    return;
-                }
-
-
-                //String text = ((thumbnailList1.SelectedItems[0].Index) + 1).ToString();
-                String text = ((SelectedIndices.First()) + 1).ToString();
-                String text2 = imageList.Images[SelectedIndices.First()].infoResolution;
-                
-                String text3 = imageList.Images[SelectedIndices.First()].BarCodeData;
-                
-                String text4 = "";
-                if (text3 != "" && text3 != null)
-                    text4 = "Barcode: " + text3;
-                String format = imageList.Images[SelectedIndices.First()].infoFormat;
-                string side;
-                if (imageList.Images[SelectedIndices.First()].SheetSide == 1)
-                    side = "- side: front";
-                else if (imageList.Images[SelectedIndices.First()].SheetSide == 2)
-                    side = "- side: back";
-                else
-                    side = "- side: front only";
-
-                statusStrip1.Items[0].Text = "Document(s): " + thumbnailList1.GetGroups().Count.ToString() + " | Image(s): " + text + "/" + imageList.Images.Count() + " : Size: " + text2 + " - " + text4 + " - " + format + side;              
-                
-                if (!minimum)
-                {
-                    var img = imageList.Images[SelectedIndices.First()];
-                    GetPreviewImage(img, true);
-                    UpdateToolbar();
-                }
-                //Put the barcode data in the toolbar
-                TS_BarcodeInfo.TextBox.Text = text3;
-            }
+            String text4 = "";
+            if (text3 != "" && text3 != null)
+                text4 = "Barcode: " + text3;
+            String format = image.infoFormat;
+            string side;
+            if (image.SheetSide == 1)
+                side = "- side: front";
+            else if (image.SheetSide == 2)
+                side = "- side: back";
             else
+                side = "- side: front only";
+
+            statusStrip1.Items[0].Text = "Document(s): " + thumbnailList1.GetGroups().Count.ToString() + " | Image(s): " + text + "/" + imageCount + " : Size: " + text2 + " - " + text4 + " - " + format + side;
+
+            if (!minimum)
             {
-                statusStrip1.Items[0].Text = MiscResources.No_selection;
+                GetPreviewImage(image, true);
                 UpdateToolbar();
             }
-
-            if (thumbnailList1.SelectedItems.Count > 1)
-            {
-                statusStrip1.Items[0].Text = MiscResources.Selection + thumbnailList1.SelectedItems.Count.ToString();
-                UpdateToolbar();
-            }
-
-
+            //Put the barcode data in the toolbar
+            TS_BarcodeInfo.TextBox.Text = text3;
         }
+
+        // True while SelectedIndices is being set: the per-item notifications are ignored, the setter updates once
+        private bool selectionChanging;
+        // True while a selection update is waiting to run (see ThumbnailList1_SelectedIndexChanged)
+        private bool selectionInfoPending;
+
         // CC - Should display the status of the selected thumbnail (CODEBAR PRESENT, SIZE, ETC, in the status bar)
+        // The ListView raises this event once per item whose selection changes (Ctrl+A on 1000 pages: 1000 times).
+        // The update is posted once and runs after the whole change, instead of once per item.
         private void ThumbnailList1_SelectedIndexChanged(object sender, EventArgs e)
         {
-            DisplaySelectedItem_info();
+            if (selectionChanging || selectionInfoPending)
+            {
+                return;
+            }
+            selectionInfoPending = true;
+            SafeInvokeAsync(() =>
+            {
+                selectionInfoPending = false;
+                DisplaySelectedItem_info();
+            });
         }
 
         private void thumbnailList1_MouseMove(object sender, MouseEventArgs e)
@@ -2526,7 +2741,7 @@ namespace NAPS2.WinForms
                 img1.ThumbnailInvalidated += ImageThumbnailInvalidated;
                 
                
-                Task.Run ( () => AddThumbnails());
+                AddThumbnails();
                 renderThumbnailsWaitHandle.Set();
                 return;
 
@@ -2586,7 +2801,7 @@ namespace NAPS2.WinForms
                 img.ThumbnailChanged += ImageThumbnailChanged;
                 img.ThumbnailInvalidated += ImageThumbnailInvalidated;
             }
-            Task.Run(() => AddThumbnails());
+            AddThumbnails();
             UpdateToolbar();
             changeTracker.Made();
             renderThumbnailsWaitHandle.Set();
@@ -2753,55 +2968,71 @@ namespace NAPS2.WinForms
             Win32.SendMessage(list.Handle, LVM_SETICONSPACING, IntPtr.Zero, (IntPtr)(int)(((ushort)hspacing) | (uint)(vspacing << 16)));
         }
 
+        // Indices of the thumbnails shown on screen, refreshed on the UI thread (see UpdateVisibleThumbnailRange).
+        // Read by the render thread to render what the user sees first.
+        private volatile int visibleThumbnailFirst;
+        private volatile int visibleThumbnailLast = -1;
+
+        // Pages whose thumbnail could not be rendered (e.g. unreadable file). They are skipped instead of blocking
+        // the other pages, and retried when they change (ImageThumbnailInvalidated).
+        private readonly HashSet<ScannedImage> failedThumbnails = new HashSet<ScannedImage>();
+
+        private System.Windows.Forms.Timer visibleRangeTimer;
+
+        private void StartThumbnailRendering()
+        {
+            // The visible range is cheap to compute (binary search) and the ListView has no scroll event:
+            // a light timer keeps it current while the user scrolls. The same timer applies the new thumbnails
+            // to the list in batches. Timer messages come after painting, so the list keeps redrawing.
+            visibleRangeTimer = new System.Windows.Forms.Timer { Interval = 100 };
+            visibleRangeTimer.Tick += (sender, args) =>
+            {
+                UpdateVisibleThumbnailRange();
+                FlushThumbnailUpdates();
+            };
+            visibleRangeTimer.Start();
+            new Thread(RenderThumbnails) { IsBackground = true, Name = "Thumbnail rendering" }.Start();
+        }
+
+        private void UpdateVisibleThumbnailRange()
+        {
+            if (closed)
+            {
+                return;
+            }
+            thumbnailList1.GetVisibleRange(out int first, out int last);
+            if (first != visibleThumbnailFirst || last != visibleThumbnailLast)
+            {
+                visibleThumbnailFirst = first;
+                visibleThumbnailLast = last;
+                // Newly shown pages may be waiting for their thumbnail
+                renderThumbnailsWaitHandle.Set();
+            }
+        }
+
         private void RenderThumbnails()
         {
-            bool useWorker = PlatformCompat.Runtime.UseWorker;
-            int workerFolderVersion = RecoveryImage.FolderVersion;
-            var worker = useWorker ? workerServiceFactory.Create() : null;
+            // Thumbnails are rendered in this process, on several threads. Pages are decoded directly at a reduced
+            // size (ScaledImageDecoder), so each thread only needs a small amount of memory.
+            int threads = Math.Max(1, Math.Min(Environment.ProcessorCount - 1, 6));
+            var options = new ParallelOptions { MaxDegreeOfParallelism = threads };
             var fallback = new ExpFallback(100, 60 * 1000);
             while (!closed)
             {
                 try
                 {
-                    ScannedImage next;
-                    while ((next = GetNextThumbnailToRender()) != null)
+                    List<ScannedImage> batch;
+                    // Small batches: the priorities (visible pages first) are recomputed often, so scrolling is followed quickly
+                    while (!closed && (batch = GetThumbnailsToRender(threads * 2, thumbnailList1.ThumbnailSize)).Count > 0)
                     {
-                        // The work folder changed (project opened in place or closed): the worker must use the new one
-                        if (worker != null && workerFolderVersion != RecoveryImage.FolderVersion)
-                        {
-                            worker.Dispose();
-                            workerFolderVersion = RecoveryImage.FolderVersion;
-                            worker = workerServiceFactory.Create();
-                        }
-                        if (!ThumbnailStillNeedsRendering(next))
-                        {
-                            continue;
-                        }
-                        using (var snapshot = next.Preserve())
-                        {
-                            var thumb = worker != null
-                                ? new Bitmap(new MemoryStream(worker.Service.RenderThumbnail(snapshot, thumbnailList1.ThumbnailSize.Height)))
-                                : thumbnailRenderer.RenderThumbnailNow(snapshot, thumbnailList1.ThumbnailSize.Height);
-
-                            if (!ThumbnailStillNeedsRendering(next))
-                            {
-                                continue;
-                            }
-
-                            next.SetThumbnail(thumb, snapshot.TransformState);
-                        }
+                        var size = thumbnailList1.ThumbnailSize;
+                        Parallel.ForEach(batch, options, img => RenderThumbnail(img, size));
                         fallback.Reset();
                     }
                 }
                 catch (Exception e)
                 {
                     Log.ErrorException("Error rendering thumbnails", e);
-                    if (worker != null)
-                    {
-                        worker.Dispose();
-                        workerFolderVersion = RecoveryImage.FolderVersion;
-                        worker = workerServiceFactory.Create();
-                    }
                     Thread.Sleep(fallback.Value);
                     fallback.Increase();
                     continue;
@@ -2810,47 +3041,127 @@ namespace NAPS2.WinForms
             }
         }
 
-        private bool ThumbnailStillNeedsRendering(ScannedImage next)
+        // Renders one thumbnail (or reads it from the disk cache). Runs on a render thread.
+        private void RenderThumbnail(ScannedImage img, Size size)
         {
-            lock (next)
+            try
             {
-                return !next.HasThumbnail || next.IsThumbnailDirty || next.CurrentThumbnailSize != thumbnailList1.ThumbnailSize;
+                if (!ThumbnailStillNeedsRendering(img, size))
+                {
+                    return;
+                }
+                using (var snapshot = img.Preserve())
+                {
+                    var thumb = ThumbnailCache.TryLoad(snapshot, size.Height);
+                    if (thumb == null)
+                    {
+                        thumb = thumbnailRenderer.RenderThumbnailNow(snapshot, size.Height);
+                        ThumbnailCache.Store(snapshot, size.Height, thumb);
+                    }
+                    if (!ThumbnailStillNeedsRendering(img, size))
+                    {
+                        thumb.Dispose();
+                        return;
+                    }
+                    img.SetThumbnail(thumb, snapshot.TransformState);
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                // The page was removed while its thumbnail was being rendered
+            }
+            catch (Exception e)
+            {
+                Log.ErrorException("Error rendering a thumbnail", e);
+                lock (failedThumbnails)
+                {
+                    failedThumbnails.Add(img);
+                }
             }
         }
 
-        private ScannedImage GetNextThumbnailToRender()
+        private bool ThumbnailStillNeedsRendering(ScannedImage next, Size size)
+        {
+            lock (next)
+            {
+                return !next.HasThumbnail || next.IsThumbnailDirty || next.CurrentThumbnailSize != size;
+            }
+        }
+
+        /// <summary>
+        /// Gets up to max pages that need a thumbnail, most important first:
+        /// 1) pages on screen, 2) other pages without a thumbnail or with an outdated one (after the visible
+        /// area first, then before it), 3) other pages whose thumbnail only has the wrong size.
+        /// </summary>
+        private List<ScannedImage> GetThumbnailsToRender(int max, Size size)
         {
             List<ScannedImage> listCopy;
             lock (imageList)
             {
                 listCopy = imageList.Images.ToList();
             }
-            // Look for images without thumbnails
-            foreach (var img in listCopy)
+            HashSet<ScannedImage> failed;
+            lock (failedThumbnails)
             {
-                if (!img.HasThumbnail)
+                if (failedThumbnails.Count > 0)
                 {
-                    return img;
+                    var present = new HashSet<ScannedImage>(listCopy);
+                    failedThumbnails.RemoveWhere(x => !present.Contains(x));
+                }
+                failed = new HashSet<ScannedImage>(failedThumbnails);
+            }
+
+            int count = listCopy.Count;
+            int first = Math.Max(0, Math.Min(visibleThumbnailFirst, count));
+            int last = Math.Min(visibleThumbnailLast, count - 1);
+
+            var visible = new List<ScannedImage>();
+            var outdated = new List<ScannedImage>();
+            var resized = new List<ScannedImage>();
+            void Check(int i, bool isVisible)
+            {
+                var img = listCopy[i];
+                if (failed.Contains(img))
+                {
+                    return;
+                }
+                bool missingOrDirty, wrongSize;
+                lock (img)
+                {
+                    missingOrDirty = !img.HasThumbnail || img.IsThumbnailDirty;
+                    wrongSize = img.CurrentThumbnailSize != size;
+                }
+                if (!missingOrDirty && !wrongSize)
+                {
+                    return;
+                }
+                if (isVisible)
+                {
+                    visible.Add(img);
+                }
+                else if (missingOrDirty)
+                {
+                    outdated.Add(img);
+                }
+                else
+                {
+                    resized.Add(img);
                 }
             }
-            // Look for images with dirty thumbnails
-            foreach (var img in listCopy)
+
+            for (int i = first; i <= last; i++)
             {
-                if (img.IsThumbnailDirty)
-                {
-                    return img;
-                }
+                Check(i, true);
             }
-            // Look for images with mis-sized thumbnails
-            foreach (var img in listCopy)
+            for (int i = Math.Max(last + 1, first); i < count; i++)
             {
-                if (img.CurrentThumbnailSize != thumbnailList1.ThumbnailSize)
-                {
-                    return img;
-                }
+                Check(i, false);
             }
-            // Nothing to render
-            return null;
+            for (int i = first - 1; i >= 0; i--)
+            {
+                Check(i, false);
+            }
+            return visible.Concat(outdated).Concat(resized).Take(max).ToList();
         }
 
         private void btnZoomOut_Click(object sender, EventArgs e)
@@ -3345,10 +3656,11 @@ namespace NAPS2.WinForms
             if (!adopted && imageList.Images.Count() > 0)
             {
                 // If the projectname was not named, will put the "untitled" and the date so it will be easier to find out later, else keep the defined name for the folder
+                // Recursive: the "thumbs" cache folder is copied too, so the thumbnails are ready when the project is reopened
                 if (projectName.Contains(string.Format(MiscResources.ProjectName)))
-                    PathHelper.CopyDirectory(RecoveryImage.RecoveryFolder.FullName, Paths.Projects + "//" + projectName + "_" + strToday, false);
+                    PathHelper.CopyDirectory(RecoveryImage.RecoveryFolder.FullName, Paths.Projects + "//" + projectName + "_" + strToday, true);
                 else
-                    PathHelper.CopyDirectory(RecoveryImage.RecoveryFolder.FullName, Paths.Projects + "//" + projectName, false);
+                    PathHelper.CopyDirectory(RecoveryImage.RecoveryFolder.FullName, Paths.Projects + "//" + projectName, true);
             }  
 
             if (clear)
@@ -3395,6 +3707,7 @@ namespace NAPS2.WinForms
 
         private void ResetWorkspaceToNew()
         {
+            ClearPreviewPrefetch();
             bitmap = null;
             tiffViewerCtl1.Image = null;
             DeleteThumbnails();

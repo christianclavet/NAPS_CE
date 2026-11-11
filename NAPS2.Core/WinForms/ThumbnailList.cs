@@ -58,9 +58,76 @@ namespace NAPS2.WinForms
 
         private Bitmap placeholder;
 
+        // Native group settings already sent (see GroupRefresh). They are lost when the window handle is recreated.
+        private readonly HashSet<ListViewGroup> groupsWithState = new HashSet<ListViewGroup>();
+        private readonly Dictionary<ListViewGroup, string> groupFooters = new Dictionary<ListViewGroup, string>();
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            groupsWithState.Clear();
+            groupFooters.Clear();
+        }
+
         public ListViewGroupCollection GetGroups()
         {
             return Groups;
+        }
+
+        /// <summary>
+        /// Gets the indices of the first and last items currently shown on screen (last is -1 when nothing is shown).
+        /// Items are laid out in index order, so a binary search on their bounds is enough. Must run on the UI thread.
+        /// </summary>
+        public void GetVisibleRange(out int first, out int last)
+        {
+            first = 0;
+            last = -1;
+            int count = Items.Count;
+            if (count == 0 || !IsHandleCreated || ClientSize.Height <= 0)
+            {
+                return;
+            }
+            int height = ClientSize.Height;
+
+            // First item whose bottom is below the top of the view
+            int lo = 0, hi = count - 1, found = count;
+            while (lo <= hi)
+            {
+                int mid = (lo + hi) / 2;
+                if (Items[mid].Bounds.Bottom > 0)
+                {
+                    found = mid;
+                    hi = mid - 1;
+                }
+                else
+                {
+                    lo = mid + 1;
+                }
+            }
+            if (found == count)
+            {
+                return;
+            }
+            first = found;
+
+            // Last item whose top is above the bottom of the view
+            lo = first;
+            hi = count - 1;
+            found = first;
+            while (lo <= hi)
+            {
+                int mid = (lo + hi) / 2;
+                if (Items[mid].Bounds.Top < height)
+                {
+                    found = mid;
+                    lo = mid + 1;
+                }
+                else
+                {
+                    hi = mid - 1;
+                }
+            }
+            last = found;
         }
 
         public ThumbnailList()
@@ -138,53 +205,47 @@ namespace NAPS2.WinForms
                 if (Groups.Count < 1)
                 {
                     AddGroup("Document 1");
+                }
+
+                BeginUpdate();
+                try
+                {
+                    // The real thumbnail is used whenever it exists, also while a project is loading (recover):
+                    // a thumbnail rendered before its item was created used to be replaced by the hourglass here,
+                    // and since the page was already rendered it was never drawn again.
+                    int existing = Math.Min(Math.Min(ilThumbnailList.Images.Count, Items.Count), allImages.Count);
+                    for (int i = 0; i < existing; i++)
+                    {
+                        if (Items[i].Tag != allImages[i])
+                        {
+                            SetImageAt(i, GetThumbnail(allImages[i]));
+                            Items[i].Tag = allImages[i];
+                        }
+                    }
+
+                    // New items are created first and added in one call: adding them one by one and setting
+                    // their text made the ListView insert each item separately.
+                    var newItems = new List<ListViewItem>();
+                    for (int i = ilThumbnailList.Images.Count; i < allImages.Count; i++)
+                    {
+                        AddImage(GetThumbnail(allImages[i]));
+                        var text = allImages[i].Separator
+                            ? (i + 1).ToString() + " Separator"
+                            : (i + 1).ToString();
+                        newItems.Add(new ListViewItem(text, i) { Tag = allImages[i], ForeColor = color });
+                    }
+                    if (newItems.Count > 0)
+                    {
+                        Items.AddRange(newItems.ToArray());
+                    }
+
+                    // Puts every page in its document group (only the pages that are not in it yet)
                     GroupRefresh(allImages);
                 }
-
-                
-                BeginUpdate();
-                for (int i = 0; i < ilThumbnailList.Images.Count; i++)
+                finally
                 {
-                    if (Items[i].Tag != allImages[i])
-                    {
-                        if (!recover)
-                            SetImageAt(i, GetThumbnail(allImages[i]));
-                        else
-                            SetImageAt(i, RenderPlaceholder());
-
-                        Items[i].Tag = allImages[i];
-                    }
+                    EndUpdate();
                 }
-                EndUpdate();
-
-                BeginUpdate();
-                for (int i = ilThumbnailList.Images.Count; i < allImages.Count; i++)
-                {
-                    if (!recover)
-                        AddImage(GetThumbnail(allImages[i]));
-                    else
-                        AddImage(RenderPlaceholder());
-
-                    Items.Add(ItemText, i).Tag = allImages[i];
-                    var sep = allImages[i].Separator;
-                    if (sep)
-                    {
-                        AddGroup("Document " + (Groups.Count + 1).ToString());
-                        Items[i].Text = (i + 1).ToString() + " Separator";
-                    } else
-                    {
-                        Items[i].Text = (i + 1).ToString();
-                    }
-                    Items[i].ForeColor = color;
-                    Groups[Groups.Count - 1].Items.Add(Items[i]);
-                    if (i == allImages.Count - 1)
-                    {
-                        GroupRefresh(allImages);
-                    }
-                    
-                }
-                EndUpdate();
-
             }
             Invalidate();
         }
@@ -194,61 +255,120 @@ namespace NAPS2.WinForms
             lock (syncRoot)
             {
                 BeginUpdate();
-                if (allImages.Count == 0)
+                try
                 {
-                    ilThumbnailList.Images.Clear();
-                    Items.Clear();
-                }
-                else
-                {
-                    var a = CurrentImages.Except(allImages).Count();
-                    foreach (var oldImg in CurrentImages.Except(allImages))
+                    if (allImages.Count == 0)
                     {
-                        var item = Items.Cast<ListViewItem>().First(x => x.Tag == oldImg);
-                        foreach (ListViewItem item2 in Items)
+                        ilThumbnailList.Images.Clear();
+                        Items.Clear();
+                    }
+                    else
+                    {
+                        // One pass instead of a full scan of the list for every removed page
+                        var remaining = new HashSet<ScannedImage>(allImages);
+                        var removedImageIndices = new List<int>();
+                        for (int i = Items.Count - 1; i >= 0; i--)
                         {
-                            if (item2.ImageIndex > item.ImageIndex)
+                            var item = Items[i];
+                            if (!remaining.Contains((ScannedImage)item.Tag))
                             {
-                                item2.ImageIndex -= 1;
+                                removedImageIndices.Add(item.ImageIndex);
+                                Items.RemoveAt(i);
                             }
                         }
-
-                        ilThumbnailList.Images.RemoveAt(item.ImageIndex);
-                        Items.RemoveAt(item.Index);
+                        if (removedImageIndices.Count > 0)
+                        {
+                            // Icons removed from the highest index down, so the other indices stay valid meanwhile
+                            removedImageIndices.Sort();
+                            for (int k = removedImageIndices.Count - 1; k >= 0; k--)
+                            {
+                                int imageIndex = removedImageIndices[k];
+                                if (imageIndex >= 0 && imageIndex < ilThumbnailList.Images.Count)
+                                {
+                                    ilThumbnailList.Images.RemoveAt(imageIndex);
+                                }
+                            }
+                            // Each remaining item moves down by the number of icons removed before its own
+                            foreach (ListViewItem item in Items)
+                            {
+                                int old = item.ImageIndex;
+                                int shift = CountLessThan(removedImageIndices, old);
+                                if (shift > 0)
+                                {
+                                    item.ImageIndex = old - shift;
+                                }
+                            }
+                        }
                     }
                 }
-                EndUpdate();
+                finally
+                {
+                    EndUpdate();
+                }
                 GroupRefresh(allImages);
             }
             Invalidate();
         }
         
+        // Number of values lower than value in a sorted list
+        private static int CountLessThan(List<int> sorted, int value)
+        {
+            int lo = 0, hi = sorted.Count;
+            while (lo < hi)
+            {
+                int mid = (lo + hi) / 2;
+                if (sorted[mid] < value)
+                {
+                    lo = mid + 1;
+                }
+                else
+                {
+                    hi = mid;
+                }
+            }
+            return lo;
+        }
+
+        // Each change of an item is a message to the native ListView (and a redraw): only send real changes
+        private static void SetItemText(ListViewItem item, string text, Color color)
+        {
+            if (item.Text != text)
+            {
+                item.Text = text;
+            }
+            if (item.ForeColor != color)
+            {
+                item.ForeColor = color;
+            }
+        }
+
         public void UpdatedImages(List<ScannedImage> images, List<int> selection, Color color)
         {
             lock (syncRoot)
             {
                 BeginUpdate();
-                int min = selection == null || !selection.Any() ? 0 : selection.Min();
-                int max = selection == null || !selection.Any() ? images.Count : selection.Max() + 1;
-
-                for (int i = min; i < max; i++)
+                try
                 {
-                    int imageIndex = Items[i].ImageIndex;
-                    SetImageAt(imageIndex, GetThumbnail(images[i]));
-                    Items[i].Tag = images[i];
+                    int min = selection == null || !selection.Any() ? 0 : selection.Min();
+                    int max = selection == null || !selection.Any() ? images.Count : selection.Max() + 1;
+                    max = Math.Min(max, Math.Min(images.Count, Items.Count));
 
-                    if (images[i].RecoveryIndexImage.isSeparator)
+                    for (int i = Math.Max(0, min); i < max; i++)
                     {
-                        Items[i].Text = (i + 1).ToString() + "/" + Items.Count.ToString() + " Separator";
-                    }
-                    else
-                    {
-                        Items[i].Text = (i + 1).ToString() + "/" + Items.Count.ToString() + " ";
-                    }
+                        int imageIndex = Items[i].ImageIndex;
+                        SetImageAt(imageIndex, GetThumbnail(images[i]));
+                        Items[i].Tag = images[i];
 
-                    Items[i].ForeColor = color;
+                        var text = images[i].RecoveryIndexImage.isSeparator
+                            ? (i + 1).ToString() + "/" + Items.Count.ToString() + " Separator"
+                            : (i + 1).ToString() + "/" + Items.Count.ToString() + " ";
+                        SetItemText(Items[i], text, color);
+                    }
                 }
-                EndUpdate();
+                finally
+                {
+                    EndUpdate();
+                }
             }
             Invalidate();
         }
@@ -258,24 +378,25 @@ namespace NAPS2.WinForms
             lock (syncRoot)
             {
                 BeginUpdate();
-                for (int i = 0; i < allImages.Count; i++)
+                try
                 {
-                    int imageIndex = Items[i].ImageIndex;
-                    SetImageAt(imageIndex, GetThumbnail(allImages[i]));
-                    Items[i].Tag = allImages[i];
-
-                    if (allImages[i].Separator)
+                    int count = Math.Min(allImages.Count, Items.Count);
+                    for (int i = 0; i < count; i++)
                     {
-                        Items[i].Text = (i + 1).ToString() + "/" + Items.Count.ToString() + " Separator";
-                    }
-                    else
-                    {
-                        Items[i].Text = (i + 1).ToString() + "/" + Items.Count.ToString() + " ";
-                    }
+                        int imageIndex = Items[i].ImageIndex;
+                        SetImageAt(imageIndex, GetThumbnail(allImages[i]));
+                        Items[i].Tag = allImages[i];
 
-                    Items[i].ForeColor = color;
+                        var text = allImages[i].Separator
+                            ? (i + 1).ToString() + "/" + Items.Count.ToString() + " Separator"
+                            : (i + 1).ToString() + "/" + Items.Count.ToString() + " ";
+                        SetItemText(Items[i], text, color);
+                    }
                 }
-                EndUpdate();
+                finally
+                {
+                    EndUpdate();
+                }
             }
 
         }
@@ -361,19 +482,18 @@ namespace NAPS2.WinForms
         {
             lock (syncRoot)
             {
-
-                BeginUpdate();
-          
-                Groups.Clear();
+                // 1. Work out the documents (and so the groups) from the separators
                 documents.Clear();
+                var headers = new List<string>();
+                var groupOfPage = new int[images.Count];
 
                 documentCount = 1;
-                AddGroup(MiscResources.Document + documentCount.ToString());
+                headers.Add(MiscResources.Document + documentCount.ToString());
                 Document document = new Document { };
                 document.firstpage = 0;
                 document.description = MiscResources.Document + " 1";
                 document.lastpage = images.Count;
-            
+
                 for (int i = 0; i < images.Count; i++)
                 {
                     // Group define from separator
@@ -383,37 +503,82 @@ namespace NAPS2.WinForms
                             document.lastpage = i;
 
                         documents.Add(document);
-                        
+
                         document = new Document { };
                         document.firstpage = i;
                         document.description = MiscResources.Document + i.ToString();
-                        
+
                         string name = images[i].RecoveryIndexImage.SeparatorName;
                         document.name = Path.GetFileNameWithoutExtension(name);
 
-                        documentCount = Groups.Count + 1;
-                        AddGroup(MiscResources.Document + documentCount.ToString() + ": " + document.name);
+                        documentCount = headers.Count + 1;
+                        headers.Add(MiscResources.Document + documentCount.ToString() + ": " + document.name);
                     }
-                    // Items are created by AddedImages. If they do not exist yet, stop instead of indexing past the end,
-                    // which would throw and leave the ListView in BeginUpdate (blank).
-                    if (i >= Items.Count)
-                    {
-                        break;
-                    }
-                    Groups[documentCount - 1].Items.Add(Items[i]);
-                }
-                // Native group messages are sent once per group instead of once per page
-                if (Groups.Count > 0)
-                {
-                    SetGroupState(ListViewGroupState.Collapsible);
-                    foreach (ListViewGroup group in Groups)
-                    {
-                        SetGroupFooter(group, group.Items.Count.ToString() + MiscResources.PagesDoc);
-                    }
+                    groupOfPage[i] = headers.Count - 1;
                 }
                 document.lastpage = images.Count;
                 documents.Add(document);
-                EndUpdate();
+
+                // 2. Update the groups in place. Before, every group was deleted and every page put back in one,
+                // which made the ListView redo all its layout each time (each batch while loading, each move,
+                // each delete). Existing groups are kept (which also keeps a collapsed group collapsed) and only
+                // the pages that are not in their group are moved.
+                BeginUpdate();
+                try
+                {
+                    while (Groups.Count > headers.Count)
+                    {
+                        var removed = Groups[Groups.Count - 1];
+                        Groups.RemoveAt(Groups.Count - 1);
+                        groupsWithState.Remove(removed);
+                        groupFooters.Remove(removed);
+                    }
+                    for (int g = 0; g < headers.Count; g++)
+                    {
+                        if (g < Groups.Count)
+                        {
+                            if (Groups[g].Header != headers[g])
+                            {
+                                Groups[g].Header = headers[g];
+                            }
+                        }
+                        else
+                        {
+                            AddGroup(headers[g]);
+                        }
+                    }
+
+                    // Items are created by AddedImages; pages without an item yet are placed when it is created
+                    int count = Math.Min(images.Count, Items.Count);
+                    for (int i = 0; i < count; i++)
+                    {
+                        var group = Groups[groupOfPage[i]];
+                        var item = Items[i];
+                        if (item.Group != group)
+                        {
+                            group.Items.Add(item);
+                        }
+                    }
+
+                    // 3. Native group settings, only where something changed: each message is sent to the ListView
+                    foreach (ListViewGroup group in Groups)
+                    {
+                        if (groupsWithState.Add(group))
+                        {
+                            SetGroupState(group, ListViewGroupState.Collapsible);
+                        }
+                        var footer = group.Items.Count.ToString() + MiscResources.PagesDoc;
+                        if (!groupFooters.TryGetValue(group, out var current) || current != footer)
+                        {
+                            SetGroupFooter(group, footer);
+                            groupFooters[group] = footer;
+                        }
+                    }
+                }
+                finally
+                {
+                    EndUpdate();
+                }
                 return documents;
             }
 
@@ -422,65 +587,84 @@ namespace NAPS2.WinForms
 
         public void ReplaceThumbnail(int index, ScannedImage img)
         {
+            ReplaceThumbnails(new[] { (index, img) });
+        }
+
+        /// <summary>
+        /// Replaces the icons of several pages at once. Only the icons are redrawn (no BeginUpdate/EndUpdate,
+        /// which redrew the whole list for every thumbnail).
+        /// A page whose item does not exist yet is skipped: AddedImages uses its thumbnail when it creates the item.
+        /// </summary>
+        public void ReplaceThumbnails(IEnumerable<(int Index, ScannedImage Image)> updates)
+        {
             lock (syncRoot)
             {
-                BeginUpdate();
-                var thumb = GetThumbnail(img);
-                if (thumb.Size == ThumbnailSize)
+                foreach (var (index, img) in updates)
                 {
-                    SetImageAt(index, thumb);
-                    Invalidate(Items[index].Bounds);
+                    if (index < 0 || index >= Items.Count)
+                    {
+                        continue;
+                    }
+                    var item = Items[index];
+                    if (item.Tag != img || item.ImageIndex < 0 || item.ImageIndex >= ilThumbnailList.Images.Count)
+                    {
+                        continue;
+                    }
+                    var thumb = GetThumbnail(img);
+                    if (thumb.Size == ThumbnailSize)
+                    {
+                        SetImageAt(item.ImageIndex, thumb);
+                        Invalidate(item.Bounds);
+                    }
+                    else
+                    {
+                        ReleaseThumbnail(thumb);
+                    }
                 }
-                else
-                {
-                    ReleaseThumbnail(thumb);
-                }
-                EndUpdate();
             }
         }
 
         public void RegenerateThumbnailList(List<ScannedImage> images, Color color, bool onlyText = false)
         {
             
-            lock (syncRoot) { 
-                
-                if (!onlyText)
+            lock (syncRoot) {
+
+                BeginUpdate();
+                try
                 {
-                    BeginUpdate();
-                    if (ilThumbnailList.Images.Count > 0)
+                    if (!onlyText)
                     {
-                        ilThumbnailList.Images.Clear();
+                        if (ilThumbnailList.Images.Count > 0)
+                        {
+                            ilThumbnailList.Images.Clear();
+                        }
+                        // Added one by one so each copy can be released once the ImageList has its pixels (see AddImage)
+                        foreach (var image in images)
+                        {
+                            AddImage(GetThumbnail(image));
+                        }
                     }
 
-                    // Typed as Bitmap so each entry can be released after the ImageList copies it
-                    var list = new List<Bitmap>();
-                    foreach (var image in images)
+                    int count = Items.Count;
+                    for (int i = 0; i < count && i < images.Count; i++)
                     {
-                        list.Add(GetThumbnail(image));
+                        var item = Items[i];
+                        var text = images[i].Separator == true
+                            ? (i + 1).ToString() + "/" + count.ToString() + MiscResources.Separator
+                            : (i + 1).ToString() + "/" + count.ToString();
+                        SetItemText(item, text, color);
+                        if (item.ImageIndex != i)
+                        {
+                            item.ImageIndex = i;
+                        }
                     }
 
-                    // Bitmaps are owned by the ImageList from here on; do not dispose them
-                    ilThumbnailList.Images.AddRange(list.ToArray());
+                    GroupRefresh(images);
+                }
+                finally
+                {
                     EndUpdate();
                 }
-                
-                foreach (ListViewItem item in Items)
-                {
-                    if (images[item.Index].Separator == true)
-                    {
-                        item.Text = (item.Index + 1).ToString() + "/" + Items.Count.ToString() + MiscResources.Separator;
-                    } else
-                    {
-                        item.Text = (item.Index + 1).ToString() + "/" + Items.Count.ToString();
-                    }
-                    item.ImageIndex = item.Index;
-                    item.ForeColor = color;
-                
-
-                }
-
-                GroupRefresh(images);
-
             }
 
         }
@@ -495,16 +679,29 @@ namespace NAPS2.WinForms
             }
         }
 
-        // The ImageList keeps a reference to the bitmap until its native handle is created, so the bitmap
-        // must NOT be disposed here. Disposing it made the list show broken thumbnails.
+        // Once its native handle exists, the ImageList copies the pixels and keeps no reference to the bitmap
+        // (checked: the icons stay correct after the bitmap is disposed). Before the handle exists it keeps the
+        // bitmap to build the handle later, so it must not be disposed then (that made broken thumbnails).
+        // These copies were never released before: 64 KB per icon at 128 px, 256 KB at 256 px.
+        private void ReleaseAfterImageList(Bitmap thumb)
+        {
+            if (ilThumbnailList.HandleCreated)
+            {
+                ReleaseThumbnail(thumb);
+            }
+        }
+
         private void SetImageAt(int index, Bitmap thumb)
         {
+            // Setting an icon creates the handle if needed, so the copy can always be released afterwards
             ilThumbnailList.Images[index] = thumb;
+            ReleaseAfterImageList(thumb);
         }
 
         private void AddImage(Bitmap thumb)
         {
             ilThumbnailList.Images.Add(thumb);
+            ReleaseAfterImageList(thumb);
         }
 
         private Bitmap GetThumbnail(ScannedImage img)

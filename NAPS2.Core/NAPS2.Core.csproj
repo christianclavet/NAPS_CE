@@ -148,6 +148,8 @@
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Xml" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ClientCreds.Designer.cs">
@@ -489,6 +491,8 @@
     <Compile Include="Scan\Images\ScannedImage.cs" />
     <Compile Include="Scan\Images\ScannedImageHelper.cs" />
     <Compile Include="Scan\Images\ScannedImageList.cs" />
+    <Compile Include="Scan\Images\ThumbnailCache.cs" />
+    <Compile Include="Scan\Images\ScaledImageDecoder.cs" />
     <Compile Include="Scan\Images\ThumbnailRenderer.cs" />
     <Compile Include="Scan\Images\ImageScaleHelper.cs" />
     <Compile Include="Scan\IScanDriver.cs" />

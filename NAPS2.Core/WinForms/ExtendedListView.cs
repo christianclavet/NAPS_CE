@@ -95,14 +95,16 @@ public class ListViewExtended : System.Windows.Forms.ListView
     [DllImport("User32.dll"), Description("Sends the specified message to a window or windows.The SendMessage function calls the window procedure for the specified window and does not return until the window procedure has processed the message.To send a message and return immediately, use the SendMessageCallback or SendNotifyMessage function. To post a message to a thread's message queue and return immediately,  us the PostMessage or PostThreadMessage function.")]
     private static extern int SendMessage
     (IntPtr hWnd, int Msg, int wParam, LVGROUP lParam);
+    // Looked up once: reflection is slow and this runs for every group on every refresh
+    private static readonly PropertyInfo GroupIdProperty =
+        typeof(ListViewGroup).GetProperty("ID", BindingFlags.NonPublic | BindingFlags.Instance);
+
     private static int? GetGroupID(ListViewGroup lstvwgrp)
     {
         int? rtnval = null;
-        Type GrpTp = lstvwgrp.GetType();
-        if (GrpTp != null)
+        if (lstvwgrp != null)
         {
-            PropertyInfo pi = GrpTp.GetProperty("ID", BindingFlags.NonPublic |
-                            BindingFlags.Instance);
+            PropertyInfo pi = GroupIdProperty;
             if (pi != null)
             {
                 object tmprtnval = pi.GetValue(lstvwgrp, null);
@@ -146,7 +148,8 @@ public class ListViewExtended : System.Windows.Forms.ListView
                 SendMessage(lstvwgrp.ListView.Handle, LVM_SETGROUPINFO, gIndex, group);
                 SendMessage(lstvwgrp.ListView.Handle, LVM_SETGROUPINFO, gIndex, group);
             }
-            lstvwgrp.ListView.Refresh();
+            // No Refresh() here: it repainted the whole list synchronously for every group.
+            // Callers invalidate the list once when they are done.
         }
     }
     private static void setGrpFooter(ListViewGroup lstvwgrp, string footer)
@@ -184,6 +187,14 @@ public class ListViewExtended : System.Windows.Forms.ListView
     {
         foreach (ListViewGroup lvg in this.Groups)
             setGrpState(lvg, state);
+        Invalidate();
+    }
+    /// <summary>
+    /// Sets the state of one group only (e.g. a group just created). Does not redraw the list.
+    /// </summary>
+    public void SetGroupState(ListViewGroup lvg, ListViewGroupState state)
+    {
+        setGrpState(lvg, state);
     }
     public void SetGroupFooter(ListViewGroup lvg, string footerText)
     {
