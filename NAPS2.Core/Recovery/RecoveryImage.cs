@@ -18,8 +18,14 @@ namespace NAPS2.Recovery
     public class RecoveryImage : IDisposable
     {
         public const string LOCK_FILE_NAME = ".lock";
-        public static string batch_name = "Work_folder_"+Path.GetRandomFileName();
-        private static readonly string RecoveryFolderPath = Path.Combine(Paths.Projects, batch_name );
+        public static string batch_name = NewBatchName();
+        // Not readonly: a new name is chosen each time a new work folder is started (see StartNewWorkFolder)
+        private static string RecoveryFolderPath => Path.Combine(Paths.Projects, batch_name);
+
+        private static string NewBatchName()
+        {
+            return "Work_folder_" + Path.GetRandomFileName();
+        }
 
         public static DirectoryInfo _recoveryFolder;
         public static FileInfo _recoveryLockFile;
@@ -216,6 +222,39 @@ namespace NAPS2.Recovery
         }
 
         /// <summary>
+        /// Starts over like when the application starts: a saved project opened in place is released (its files are kept),
+        /// and a new work folder with a new name will be created on next use.
+        /// Must only be called when no page is loaded: an owned work folder that still has pages is left untouched.
+        /// </summary>
+        public static void StartNewWorkFolder()
+        {
+            if (IsAdopted)
+            {
+                ReleaseAdopted();
+            }
+            else if (_recoveryIndexManager != null)
+            {
+                lock (_recoveryIndexManager)
+                {
+                    if (_recoveryIndexManager.Index.Images.Count > 0)
+                    {
+                        Log.Error("StartNewWorkFolder called while the work folder still has pages. Nothing was changed.");
+                        return;
+                    }
+                }
+                // Empty folder owned by this process: remove it
+                DeleteWorkFolder();
+            }
+            _recoveryLock?.Dispose();
+            _recoveryLock = null;
+            _recoveryLockFile = null;
+            _recoveryIndexManager = null;
+            _recoveryFolder = null;
+            batch_name = NewBatchName();
+            FolderVersion++;
+        }
+
+        /// <summary>
         /// Stops using an adopted project folder without touching its files. A new work folder is created on next use.
         /// </summary>
         public static void ReleaseAdopted()
@@ -281,6 +320,10 @@ namespace NAPS2.Recovery
 
         private bool saved;
         private bool disposed;
+
+        // Folder the page belongs to. When the folder changes (project opened, released or new work folder),
+        // disposing an old page must never delete a file or touch the index of the new folder.
+        private readonly int folderVersion = FolderVersion;
 
         private RecoveryImage(ImageFormat fileFormat, ScanBitDepth bitDepth, bool highQuality, List<Transform> transformList)
         {
@@ -392,9 +435,14 @@ namespace NAPS2.Recovery
 
         public void Dispose()
         {
+            if (disposed)
+            {
+                // A page can be disposed twice (e.g. by a thumbnail snapshot): never delete anything a second time
+                return;
+            }
             try
             {
-                if (_recoveryIndexManager != null && !DisableRecoveryCleanup && Volatile.Read(ref keepFilesCount) == 0 && File.Exists(FilePath))
+                if (folderVersion == FolderVersion && _recoveryIndexManager != null && !DisableRecoveryCleanup && Volatile.Read(ref keepFilesCount) == 0 && File.Exists(FilePath))
                 {
                     File.Delete(FilePath);
                     lock (_recoveryIndexManager)
@@ -407,7 +455,7 @@ namespace NAPS2.Recovery
                     }
                     if (_recoveryIndexManager.Index.Images.Count == 0 && !IsAdopted)
                     {
-                        _recoveryLock.Dispose();
+                        _recoveryLock?.Dispose();
                         RecoveryFolder.Delete(true);
                         _recoveryFolder = null;
                     }

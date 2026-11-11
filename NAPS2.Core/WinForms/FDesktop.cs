@@ -2948,9 +2948,10 @@ namespace NAPS2.WinForms
             int index = GetDragIndex(e);
             if (index != -1)
             {
+                var before = imageList.Images.ToList();
                 UpdateThumbnails(imageList.MoveTo(SelectedIndices, index), true, true);
                 thumbnailList1.GroupRefresh(imageList.Images);
-                changeTracker.Made();
+                MarkChangedIfOrderChanged(before);
             }
         }
 
@@ -2958,7 +2959,18 @@ namespace NAPS2.WinForms
         {
             if (index != -1)
             {
+                var before = imageList.Images.ToList();
                 UpdateThumbnails(imageList.MoveTo(selection, index), true, true);
+                MarkChangedIfOrderChanged(before);
+            }
+        }
+
+        // A click with a small mouse move starts a drag that drops the pages where they already are:
+        // only a real change of the page order counts as a change (otherwise it asks to save for nothing).
+        private void MarkChangedIfOrderChanged(List<ScannedImage> before)
+        {
+            if (!before.SequenceEqual(imageList.Images))
+            {
                 changeTracker.Made();
             }
         }
@@ -3119,19 +3131,13 @@ namespace NAPS2.WinForms
         private async void loadProjectTool_TSMI_Click_1(object sender, EventArgs e)
         {
 
-            bool skipSave = false;
-            if (imageList.Images.Count() > 0)
+            // True when the user wants the current pages kept (backed up) before the project is loaded
+            bool saveCurrent = false;
+            if (HasPagesToSave())
             {
                 var result1 = MessageBox.Show(MiscResources.UnsavedChangesAction, MiscResources.UnsavedChanges,
                             MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
-                if (result1 == DialogResult.No)
-                {
-                    skipSave = false;
-                }
-                if (result1 == DialogResult.Yes)
-                {
-                    skipSave = true;
-                }
+                saveCurrent = result1 == DialogResult.Yes;
             }
 
             var openFileDialog = new OpenFileDialog();
@@ -3157,7 +3163,7 @@ namespace NAPS2.WinForms
                 }
                 if (File.Exists(Path.Combine(di.FullName, ".lock")))
                 {
-                    if (imageList.Images.Count > 0 && skipSave) 
+                    if (imageList.Images.Count > 0 && saveCurrent)
                     {
                         closeWorkspace(); // Backup the current project before getting a new one.
                     }
@@ -3188,23 +3194,29 @@ namespace NAPS2.WinForms
                     }
                     if (!adopted && openOperation.WasCancelled)
                     {
-                        // Cancelled (or window closed): the project is never completed. Its files are not modified:
-                        // buffered pages are discarded, the pages already shown are removed without deleting anything,
-                        // the folder is released, and the next scan starts a new, empty work folder.
+                        // Cancelled (or window closed): the project is closed without being deleted or modified,
+                        // then the application starts over like at startup, with a new work folder.
                         lock (pendingRecoveredImages)
                         {
                             pendingRecoveredImages.Clear();
                         }
+                        // Release the project folder FIRST: without an index manager, removing the pages below
+                        // can neither rewrite index.xml (DeferSave) nor delete a file of the project.
+                        RecoveryImage.ReleaseAdopted();
                         SetRecover(false);
                         using (RecoveryImage.KeepFiles())
                         {
                             imageList.Delete(Enumerable.Range(0, imageList.Images.Count));
                         }
-                        RecoveryImage.ReleaseAdopted();
                         recoveryManager.SetFolder(null);
                         ImageSettingsContainer.ProjectSettings = new ProjectSettings();
                         imageSettingsContainer.Project_Settings = ImageSettingsContainer.ProjectSettings;
+                        ResetWorkspaceToNew();
+                        // Like at startup: a new work folder (new name) is created on the next scan or import
+                        RecoveryImage.StartNewWorkFolder();
                         recover = false;
+                        UserConfigManager.Config.project = projectName;
+                        UserConfigManager.Save();
                         statusStrip1.Items[0].Text = MiscResources.No_selection;
                         UpdateToolbar();
                         return;
@@ -3221,6 +3233,9 @@ namespace NAPS2.WinForms
                         }
                         // Replace the "Loading project..." text now that the list is complete
                         statusStrip1.Items[0].Text = MiscResources.No_selection;
+                        // The pages come straight from the project files: loading them is not a change.
+                        // (FlushRecoveredImages marks each batch as a change, which made the app ask to save.)
+                        changeTracker.Clear();
                     }
                     else
                     {
@@ -3338,27 +3353,19 @@ namespace NAPS2.WinForms
 
             if (clear)
             {
-                
-                bitmap = null;
                 // Clear the images in the work folder and start as new
                 tiffViewerCtl1.Image = null;
 
                 if (imageList.Images.Count() > 0)
                 {
                     DeleteAllImagesKeepingProject();
-                    DeleteThumbnails();
-                    documents.Clear();
                 }
                 else if (adopted)
                 {
                     RecoveryImage.ReleaseAdopted();
                 }
-                if (changeTracker!=null)
-                    changeTracker.Clear();
-
+                ResetWorkspaceToNew();
                 notify.ParentForm = this;
-                projectName = string.Format(MiscResources.ProjectName);
-                SelectedIndices = Enumerable.Range(0, 0);
             }
             else if (!clear)
             {
@@ -3372,6 +3379,31 @@ namespace NAPS2.WinForms
             UpdateToolbar();
         }
         
+        /// <summary>
+        /// Resets the screen and the project state once every page was removed from the list:
+        /// viewer, thumbnails, documents, unsaved changes, project name and selection. Nothing is deleted on disk here.
+        /// Used when closing the workspace and when the loading of a project is cancelled.
+        /// </summary>
+        /// <summary>
+        /// True when the current pages must be offered for saving: there are pages and either they were changed,
+        /// or they only live in a temporary work folder (not a project opened in place).
+        /// </summary>
+        private bool HasPagesToSave()
+        {
+            return imageList.Images.Count > 0 && (changeTracker.HasUnsavedChanges || !RecoveryImage.IsAdopted);
+        }
+
+        private void ResetWorkspaceToNew()
+        {
+            bitmap = null;
+            tiffViewerCtl1.Image = null;
+            DeleteThumbnails();
+            documents?.Clear();
+            changeTracker?.Clear();
+            projectName = string.Format(MiscResources.ProjectName);
+            SelectedIndices = Enumerable.Range(0, 0);
+        }
+
         // Closing the project and make fresh start (like new)
         private void closeCurrentProjectToolStripMenuItem_Click(object sender, EventArgs e)
         {
@@ -3532,7 +3564,12 @@ namespace NAPS2.WinForms
         //Create a new project.
         private void tsPrjNew_Click(object sender, EventArgs e)
         {
-            if (imageList.Images.Count() > 0)
+            if (imageList.Images.Count() > 0 && !HasPagesToSave())
+            {
+                // Project opened in place and not modified: just close it, nothing to save
+                Clear(true);
+            }
+            else if (imageList.Images.Count() > 0)
             {
                 var result1 = MessageBox.Show(MiscResources.UnsavedChangesAction, MiscResources.UnsavedChanges,
                             MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);

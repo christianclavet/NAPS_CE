@@ -151,9 +151,9 @@ namespace NAPS2.Recovery
 
                 ProgressTitle = MiscResources.ImportProgress;
 
-                // Cancel and background are disabled for now: the project must be fully loaded.
-                // (Cancel handling in FDesktop is kept for when cancelling is supported again.)
-                AllowCancel = false;
+                // The loading can be cancelled: FDesktop then closes the project without touching its files
+                // and starts a new work folder. Background stays disabled: FDesktop waits for the result.
+                AllowCancel = true;
                 AllowBackground = false;
             }
 
@@ -199,6 +199,8 @@ namespace NAPS2.Recovery
                     if (CancelToken.IsCancellationRequested)
                     {
                         // Nothing is written here: the caller releases the folder and removes the loaded pages
+                        Status.StatusText = MiscResources.BatchStatusCancelling;
+                        InvokeStatusChanged();
                         return false;
                     }
                     var indexImage = indexImages[i];

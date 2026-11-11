@@ -74,7 +74,10 @@ namespace NAPS2.Operation
                     InvokeFinished();
                 }
                 // TODO: Maybe try and move away from "return false on cancel" and use cancellation tokens/OperationCancelledException via ct.ThrowIfCancellationRequested
-            }, CancelToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                // The cancel token is not given to the task itself: if it were cancelled before starting, the action would never
+                // run, Finished would never be raised and the progress window (which waits for it) could never close.
+                // The operations check CancelToken themselves.
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
 
         protected void InvokeFinished()
