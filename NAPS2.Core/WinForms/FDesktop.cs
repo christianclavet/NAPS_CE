@@ -3171,35 +3171,54 @@ namespace NAPS2.WinForms
                     //recover mode activated = (will not update the gui of the image preview while loading)
                     recover = true;
                     // Fast path: the project folder becomes the work folder and its index is read as is (no copy)
-                    // Index reading and file checks run off the UI thread so the window stays responsive
-                    var opened = new List<ScannedImage>();
-                    Cursor = Cursors.WaitCursor;
+                    // The work runs in the background while a progress window shows the pages being loaded.
+                    // Each page is sent to the list as soon as it is read (in batches), so the user sees what is loaded.
                     statusStrip1.Items[0].Text = "Loading project...";
+                    var openOperation = recoveryManager.OpenProjectInPlace(ReceiveRecovery());
+                    operationProgress.ShowModalProgress(openOperation);
                     bool adopted;
                     try
                     {
-                        adopted = await Task.Run(() => recoveryManager.OpenProjectInPlace(opened.Add));
+                        adopted = await openOperation.Success;
                     }
-                    finally
+                    catch (OperationCanceledException)
                     {
-                        Cursor = Cursors.Default;
+                        // Cancelled before the background task started
+                        adopted = false;
+                    }
+                    if (!adopted && openOperation.WasCancelled)
+                    {
+                        // Cancelled (or window closed): the project is never completed. Its files are not modified:
+                        // buffered pages are discarded, the pages already shown are removed without deleting anything,
+                        // the folder is released, and the next scan starts a new, empty work folder.
+                        lock (pendingRecoveredImages)
+                        {
+                            pendingRecoveredImages.Clear();
+                        }
+                        SetRecover(false);
+                        using (RecoveryImage.KeepFiles())
+                        {
+                            imageList.Delete(Enumerable.Range(0, imageList.Images.Count));
+                        }
+                        RecoveryImage.ReleaseAdopted();
+                        recoveryManager.SetFolder(null);
+                        ImageSettingsContainer.ProjectSettings = new ProjectSettings();
+                        imageSettingsContainer.Project_Settings = ImageSettingsContainer.ProjectSettings;
+                        recover = false;
+                        statusStrip1.Items[0].Text = MiscResources.No_selection;
+                        UpdateToolbar();
+                        return;
                     }
                     if (adopted)
                     {
-                        // Pages reach the UI in chunks, so the window keeps repainting and the first thumbnails show early
-                        await Task.Run(() =>
-                        {
-                            const int chunk = 100;
-                            for (int i = 0; i < opened.Count; i += chunk)
-                            {
-                                lock (pendingRecoveredImages)
-                                {
-                                    pendingRecoveredImages.AddRange(opened.Skip(i).Take(chunk));
-                                }
-                                FlushRecoveredImages();
-                            }
-                        });
+                        // Sends any remaining buffered pages and ends the recovery mode
                         SetRecover(false);
+                        // The project is fully loaded: select the first page and bring the list back to the top
+                        if (imageList.Images.Count > 0)
+                        {
+                            SelectedIndices = Enumerable.Range(0, 1);
+                            thumbnailList1.EnsureVisible(0);
+                        }
                         // Replace the "Loading project..." text now that the list is complete
                         statusStrip1.Items[0].Text = MiscResources.No_selection;
                     }

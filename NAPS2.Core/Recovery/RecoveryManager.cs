@@ -124,35 +124,99 @@ namespace NAPS2.Recovery
 
         /// <summary>
         /// Opens a saved project in place: its folder becomes the work folder and the index is used as is,
-        /// without copying, decoding or rewriting any page. Returns false when the folder cannot be adopted
-        /// (e.g. it is locked by another instance), in which case nothing changed.
+        /// without copying, decoding or rewriting any page. The returned operation is already started and reports
+        /// its progress page by page. Its Success result is false when the folder cannot be adopted
+        /// (e.g. it is locked by another instance) or when the loading was cancelled. In the cancelled case the caller
+        /// must release the folder (RecoveryImage.ReleaseAdopted) and remove the pages already loaded, without deleting files.
         /// </summary>
-        public bool OpenProjectInPlace(Action<ScannedImage> imageCallback)
+        public OpenProjectInPlaceOperation OpenProjectInPlace(Action<ScannedImage> imageCallback)
         {
-            if (folderToRecoverFrom == null || !RecoveryImage.TryAdopt(folderToRecoverFrom, out var index))
-            {
-                return false;
-            }
-            ImageSettingsContainer.ProjectSettings = new ProjectSettings
-            {
-                CSVFileName = index.ProjectSettings.CSVFileName,
-                DefaultFileName = index.ProjectSettings.DefaultFileName,
-                UseCSVExport = index.ProjectSettings.UseCSVExport,
-                CSVExpression = index.ProjectSettings.CSVExpression,
-                Name = index.ProjectSettings.Name
-            };
-            imageSettingsContainer.Project_Settings = ImageSettingsContainer.ProjectSettings;
+            var op = new OpenProjectInPlaceOperation(imageSettingsContainer, imageCallback);
+            op.Start();
+            return op;
+        }
 
-            foreach (var indexImage in index.Images.ToList())
+        public class OpenProjectInPlaceOperation : OperationBase
+        {
+            // Number of pages between two progress updates, so that the UI is not flooded for large projects
+            private const int ProgressUpdateInterval = 10;
+
+            private readonly ImageSettingsContainer imageSettingsContainer;
+            private readonly Action<ScannedImage> imageCallback;
+
+            public OpenProjectInPlaceOperation(ImageSettingsContainer imageSettingsContainer, Action<ScannedImage> imageCallback)
             {
-                var scannedImage = ScannedImage.FromAdoptedIndexImage(indexImage);
-                if (string.IsNullOrEmpty(indexImage.SeparatorName))
-                {
-                    indexImage.SeparatorName = Path.Combine(folderToRecoverFrom.FullName, indexImage.FileName);
-                }
-                imageCallback(scannedImage);
+                this.imageSettingsContainer = imageSettingsContainer;
+                this.imageCallback = imageCallback;
+
+                ProgressTitle = MiscResources.ImportProgress;
+
+                // Cancel and background are disabled for now: the project must be fully loaded.
+                // (Cancel handling in FDesktop is kept for when cancelling is supported again.)
+                AllowCancel = false;
+                AllowBackground = false;
             }
-            return true;
+
+            /// <summary>
+            /// True when the user cancelled (or closed the progress window) while the project was loading.
+            /// </summary>
+            public bool WasCancelled => CancelToken.IsCancellationRequested;
+
+            public void Start()
+            {
+                Status = new OperationStatus
+                {
+                    StatusText = MiscResources.Recovering,
+                    IndeterminateProgress = true
+                };
+                RunAsync(() => OpenProject());
+            }
+
+            private bool OpenProject()
+            {
+                var folder = RecoveryManager.folderToRecoverFrom;
+                if (folder == null || !RecoveryImage.TryAdopt(folder, out var index))
+                {
+                    return false;
+                }
+
+                ImageSettingsContainer.ProjectSettings = new ProjectSettings
+                {
+                    CSVFileName = index.ProjectSettings.CSVFileName,
+                    DefaultFileName = index.ProjectSettings.DefaultFileName,
+                    UseCSVExport = index.ProjectSettings.UseCSVExport,
+                    CSVExpression = index.ProjectSettings.CSVExpression,
+                    Name = index.ProjectSettings.Name
+                };
+                imageSettingsContainer.Project_Settings = ImageSettingsContainer.ProjectSettings;
+
+                var indexImages = index.Images.ToList();
+                Status.IndeterminateProgress = false;
+                OnProgress(0, indexImages.Count);
+
+                for (int i = 0; i < indexImages.Count; i++)
+                {
+                    if (CancelToken.IsCancellationRequested)
+                    {
+                        // Nothing is written here: the caller releases the folder and removes the loaded pages
+                        return false;
+                    }
+                    var indexImage = indexImages[i];
+                    var scannedImage = ScannedImage.FromAdoptedIndexImage(indexImage);
+                    if (string.IsNullOrEmpty(indexImage.SeparatorName))
+                    {
+                        indexImage.SeparatorName = Path.Combine(folder.FullName, indexImage.FileName);
+                    }
+                    imageCallback(scannedImage);
+
+                    Status.StatusText = string.Format(MiscResources.ActiveOperations, Path.GetFileName(indexImage.FileName));
+                    if ((i + 1) % ProgressUpdateInterval == 0 || i + 1 == indexImages.Count)
+                    {
+                        OnProgress(i + 1, indexImages.Count);
+                    }
+                }
+                return true;
+            }
         }
 
         public void RecoverScannedImages(Action<ScannedImage> imageCallback, bool deleteSourceAfterRecovery = false)
